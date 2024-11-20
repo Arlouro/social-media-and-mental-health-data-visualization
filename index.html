@@ -5,22 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technology and Mental Health Data Visualization</title>
   <script src="https://d3js.org/d3.v6.min.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-    }
-    .chart {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 80vh;
-    }
-  </style>
+  <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <h1>Technology and Mental Health Data Visualization</h1>
-  <div class="chart"></div>
   
-  <script src="script.js"></script>
+  <div id="data-visualization-container">
+    <div class="row">
+      <!-- Main Chart -->
+      <div class="col-8">
+        <div id="main-graph"></div>
+      </div>
+
+      <!-- Secondary Charts -->
+      <div class="col-4">
+        <div id="bar-graph"></div>
+        <div id="donut-chart"></di>
+      </div>
+    </div>
+  </div>
+
+  <script src="graphs_scripts.js"></script>
 </body>
 </html></html>

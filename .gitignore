@@ -1,0 +1,36 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Logs
+logs/
+*.log
+logs/*.log
+
+# Environment variables
+.env
+
+# Public folder (optional - if you want to exclude generated files like compiled CSS or other assets)
+public/styles/*.css.map
+
+# Cache directories
+.cache/
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Ignore coverage reports from testing (if any)
+coverage/
+
+# Exclude any temporary or working files (optional)
+*.tmp
+*.bak
