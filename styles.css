@@ -1,5 +1,52 @@
+* {
+  box-sizing: border-box;
+}
+
 body {
-  font-family: Verdana, sans-serif;
+  font-family: Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
   margin: 0;
-  padding: 0;
+  background-color: #f9f9f9;
+}
+
+svg {
+  overflow: visible;
+}
+
+.gender-label {
+  font-size: 14px;
+  text-anchor: middle;
+  fill: black;
+  pointer-events: none;
+  opacity: 0; /* Initially hidden */
+}
+
+path:hover + .gender-label {
+  opacity: 1; /* Show gender label on hover */
+}
+
+.section-border {
+  fill: none;
+  stroke: #ccc;
+  stroke-width: 1;
+  pointer-events: none; /* Prevent interaction */
+}
+
+.label {
+  font-size: 12px;
+  text-anchor: middle;
+  fill: #333;
+}
+
+.arc:hover {
+  filter: brightness(1.2);
+  cursor: pointer;
+}
+
+.tooltip {
+  font-size: 12px;
+  color: #333;
 }
