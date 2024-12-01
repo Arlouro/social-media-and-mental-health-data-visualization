@@ -4,23 +4,32 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Technology and Mental Health Data Visualization</title>
-  <script src="https://d3js.org/d3.v6.min.js"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header>
-    <h1>Title Placeholder</h1>
-  </header>
-
-  <!-- Main Graph -->
-  <div id="main-graph" class="scatter-plot"></div>
-
-  <!-- Side Graphs -->
-  <div id="side-graphs">
-    <div id="side-graph-1" class="bar-graph"></div>
-    <div id="side-graph-2" class="donut-chart"></div>
+  <div class="dashboard-container">
+      <h1 class="title">Interactive Data Visualization</h1>
+      
+      <div class="chart-container">
+          <div class="graph-card scatter-plot">
+              <div class="graph-header">Scatter Plot Graph</div>
+              <div id="main-graph"></div>
+          </div>
+          
+          <div class="side-graphs">
+              <div class="graph-card bar-graph">
+                  <div class="graph-header">Bar Graph</div>
+                  <div id="side-graph-1"></div>
+              </div>
+              <div class="graph-card donut-chart">
+                  <div class="graph-header">Donut Chart</div>
+                  <div id="side-graph-2"></div>
+              </div>
+          </div>
+      </div>
   </div>
 
   <script src="graphs_scripts.js"></script>
 </body>
-</html></html>
+</html>
