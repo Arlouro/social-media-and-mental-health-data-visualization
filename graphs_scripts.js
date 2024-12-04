@@ -11,33 +11,91 @@ const graphConfig = {
   }
 };
 
-// >-----------------< Generate Dummy Data >-------------------<
-function generateData(maxValue = 60, minValue = 10) {
-  const genders = ["Male", "Female", "Other"];
-  const levels = ["Poor", "Fair", "Good", "Excellent"];
+// >-----------------< Data Initialization >-------------------<
+function initializeGraphs() {
+  d3.csv("dataset.csv").then(data => {
+      const cleanedData = data.map(d => ({
+          age: parseAge(d["1. What is your age?"]),
+          gender: genderGroup(d["2. Gender"]),
+          socialMediaUsed: socialMediaUsedStringParse(d["7. What social media platforms do you commonly use?"]),
+          socialMediaTime: parseSocialMediaTime(d["8. What is the average time you spend on social media every day?"]), //!Not used  yet
+          distractionScale: parseScale(d["12. On a scale of 1 to 5, how easily distracted are you?"]), //!Not used yet
+          botherScale: parseScale(d["13. On a scale of 1 to 5, how much are you bothered by worries?"]), //!Not used yet
+          compareScale: parseScale(d["15. On a scale of 1-5, how often do you compare yourself to other successful people through the use of social media?"]),
+          feelDepressed: parseScale(d["18. How often do you feel depressed or down?"]),
+          feelAnxious: parseScale(d["19. How often do you feel anxious or nervous?"]), //!Not used yet
+        }));
 
-  return genders.flatMap((gender, genderIndex) => 
-      levels.map((level, levelIndex) => ({
-          gender,
-          level,
-          value: Math.floor(Math.random() * (maxValue - minValue) + minValue),
-          color: graphConfig.colors[gender],
-          genderIndex,
-          levelIndex
-      }))
-  );
+      const platformUsageByGender = countPlatformsByGender(cleanedData);
+
+      createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, cleanedData);
+      createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight, cleanedData);
+      createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight, platformUsageByGender);
+  }).catch(error => {
+      console.error("Error loading or processing data:", error);
+  });
+}
+
+// >-----------------< Helper Functions >-------------------<
+function parseAge(ageString) {
+  const age = parseInt(ageString, 10);
+  return isNaN(age) ? null : age;
+}
+
+//! Currently not used REMOVE in final delivery
+function ageGap(age) {
+  if (age === null) return "Unknown";
+  if (age < 18) return "Under 18";
+  if (age < 25) return "18-24";
+  if (age < 35) return "25-34";
+  if (age < 45) return "35-44";
+  if (age < 55) return "45-54";
+  return "55+";
+}
+
+function genderGroup(gender) {
+  if (gender === "Male" || gender === "Female") return gender;
+  return "Other";
+}
+
+function parseSocialMediaTime(timeString) {
+  if (!timeString) return "Unknown";
+  return timeString.trim();
+}
+
+function parseScale(scaleString) {
+  const scale = parseFloat(scaleString);
+  return isNaN(scale) ? null : scale;
+}
+
+function socialMediaUsedStringParse(socialMediaUsed) {
+  return socialMediaUsed ? socialMediaUsed.split(",").map(d => d.trim()) : [];
+}
+
+function countPlatformsByGender(data) {
+  const platformCounts = {};
+
+  data.forEach(entry => {
+      const { gender, socialMediaUsed } = entry;
+
+      socialMediaUsed.forEach(platform => {
+          if (!platformCounts[platform]) {
+              platformCounts[platform] = { Male: 0, Female: 0, Other: 0 };
+          }
+          platformCounts[platform][gender] = (platformCounts[platform][gender] || 0) + 1;
+      });
+  });
+
+  return platformCounts;
 }
 
 // >-----------------< Donut Chart >-------------------<
-function createDonutChart(containerId, width, height) {
+function createDonutChart(containerId, width, height, platformUsageByGender) {
   const genders = ["Male", "Female", "Other"];
-  const levels = ["Poor", "Fair", "Good", "Excellent"];
-  const colors = ["#3498db", "#e74c3c", "#2ecc71"];
-  const max_donut_value = 70;
-  const min_donut_value = 20;
-
-  const innerRadius = 40;
-  const outerRadius = Math.min(width, height) / 2 - 30;
+  const colors = [graphConfig.colors.Male, graphConfig.colors.Female, graphConfig.colors.Other];
+  
+  const innerRadius = 20;
+  const outerRadius = Math.min(width, height) / 2 + 10;
 
   const svg = d3.select(containerId)
       .append("svg")
@@ -46,59 +104,43 @@ function createDonutChart(containerId, width, height) {
       .append("g")
       .attr("transform", `translate(${width / 2}, ${height / 2})`);
 
-  svg.selectAll(".arc")
-  .on("mouseenter", function() {
-      d3.select(this)
-          .transition()
-          .duration(200)
-          .attr("filter", "url(#drop-shadow)");
-  })
-  .on("mouseleave", function() {
-      d3.select(this)
-          .transition()
-          .duration(200)
-          .attr("filter", "none");
-  });
-
   // Tooltip container
   const tooltip = d3.select("body").append("div")
       .attr("class", "tooltip")
       .style("position", "absolute")
       .style("visibility", "hidden")
       .style("background", "#fff")
-      .style("padding", "8px")
+      .style("padding", "10px")
       .style("border", "1px solid #ccc")
       .style("border-radius", "4px")
       .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
 
-  //! Generate data
-  const data = genders.flatMap((gender, genderIndex) => 
-      levels.map((level, levelIndex) => ({
+  const data = Object.entries(platformUsageByGender).flatMap(([platform, counts]) => 
+      genders.map((gender, genderIndex) => ({
+          platform,
           gender,
-          level,
-          value: Math.random() * (max_donut_value - min_donut_value) + min_donut_value,
+          value: counts[gender],
           color: colors[genderIndex],
-          genderIndex,
-          levelIndex
+          genderIndex
       }))
   );
 
   const radiusScale = d3.scaleBand()
-      .domain(levels)
+      .domain(Object.keys(platformUsageByGender))
       .range([innerRadius, outerRadius])
       .padding(0.1);
 
   const anglePerSection = Math.PI / 2;
   const angleScale = d3.scaleLinear()
-      .domain([0, 100])
+      .domain([0, d3.max(data, d => d.value)])
       .range([0, anglePerSection]);
 
   // Draw section borders
-  levels.forEach((level, levelIndex) => {
+  Object.keys(platformUsageByGender).forEach((platform, platformIndex) => {
       genders.forEach((_, genderIndex) => {
           const borderArc = d3.arc()
-              .innerRadius(radiusScale(level))
-              .outerRadius(radiusScale(level) + radiusScale.bandwidth())
+              .innerRadius(radiusScale(platform))
+              .outerRadius(radiusScale(platform) + radiusScale.bandwidth())
               .startAngle(genderIndex * anglePerSection)
               .endAngle((genderIndex + 1) * anglePerSection);
 
@@ -113,8 +155,8 @@ function createDonutChart(containerId, width, height) {
 
   // Arcs
   const arc = d3.arc()
-      .innerRadius(d => radiusScale(d.level))
-      .outerRadius(d => radiusScale(d.level) + radiusScale.bandwidth())
+      .innerRadius(d => radiusScale(d.platform))
+      .outerRadius(d => radiusScale(d.platform) + radiusScale.bandwidth())
       .startAngle(d => d.genderIndex * anglePerSection)
       .endAngle(d => d.genderIndex * anglePerSection + angleScale(d.value));
 
@@ -128,7 +170,7 @@ function createDonutChart(containerId, width, height) {
       .attr("stroke-width", 1)
       .on("mouseover", (event, d) => {
           tooltip.style("visibility", "visible")
-              .text(`${d.gender} - ${d.level}: ${Math.round(d.value)}`);
+              .text(`${d.platform} - ${d.gender}: ${d.value}`);
       })
       .on("mousemove", event => {
           tooltip.style("top", `${event.pageY + 5}px`)
@@ -148,164 +190,132 @@ function createDonutChart(containerId, width, height) {
       });
 
   // Labels
-  levels.forEach((level, levelIndex) => {
+  Object.keys(platformUsageByGender).forEach((platform, platformIndex) => {
       const angle = -Math.PI / 2;
-      const x = Math.cos(angle) * (radiusScale(level) + radiusScale.bandwidth() / 2) - 30;
-      const y = Math.sin(angle) * (radiusScale(level) + radiusScale.bandwidth() / 2) + 4;
+      const x = Math.cos(angle) * (radiusScale(platform) + radiusScale.bandwidth() / 2) - 30;
+      const y = Math.sin(angle) * (radiusScale(platform) + radiusScale.bandwidth() / 2) + 4;
 
       svg.append("text")
           .attr("class", "label")
           .attr("x", x)
           .attr("y", y)
-          .text(level)
+          .text(platform)
           .style("text-anchor", "middle")
-          .attr("font-size", "12px")
+          .attr("font-size", "10px")
           .attr("fill", "#333");
   });
 }
 
 
 // >-----------------< Bar Graph >-------------------<
-function createBarGraph(containerId, width, height) {
-    const data = generateData();
-    
-    const svg = d3.select(containerId)
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height);
-
-    const margin = {top: 20, right: 20, bottom: 30, left: 40};
-    const chartWidth = width - margin.left - margin.right;
-    const chartHeight = height - margin.top - margin.bottom;
-
-    const g = svg.append("g")
-        .attr("transform", `translate(${margin.left},${margin.top})`);
-
-    //! Prepare data for bar graph
-    const barData = d3.group(data, d => d.gender);
-
-    const x = d3.scaleBand()
-        .domain(Array.from(barData.keys()))
-        .range([0, chartWidth])
-        .padding(0.1);
-
-    const y = d3.scaleLinear()
-        .domain([0, d3.max(data, d => d.value)])
-        .nice()
-        .range([chartHeight, 0]);
-
-    svg.selectAll(".bar")
-      .on("mouseenter", function() {
-          d3.select(this)
-              .transition()
-              .duration(200)
-              .attr("fill", d => d3.rgb(d.color).brighter(0.2));
-      })
-      .on("mouseleave", function() {
-          d3.select(this)
-              .transition()
-              .duration(200)
-              .attr("fill", d => d.color);
-      });
-
-    // Axis
-    g.append("g")
-        .attr("transform", `translate(0,${chartHeight})`)
-        .call(d3.axisBottom(x));
-
-    g.append("g")
-        .call(d3.axisLeft(y));
-
-    // Bars
-    g.selectAll(".bar")
-        .data(Array.from(barData))
-        .enter().append("g")
-        .attr("class", "bar-group")
-        .selectAll("rect")
-        .data(d => d[1])
-        .enter().append("rect")
-        .attr("x", d => x(d.gender))
-        .attr("y", d => y(d.value))
-        .attr("width", x.bandwidth())
-        .attr("height", d => chartHeight - y(d.value))
-        .attr("fill", d => d.color);
-}
-
-
-// >-----------------< Scatter Plot >-------------------<
-function createScatterPlot(containerId, width, height) {
-  const data = generateData();
-  
+function createBarGraph(containerId, width, height, data) {
   const svg = d3.select(containerId)
-      .append("svg")
-      .attr("width", width)
-      .attr("height", height);
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
 
   const margin = {top: 20, right: 20, bottom: 30, left: 40};
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
   const g = svg.append("g")
-      .attr("transform", `translate(${margin.left},${margin.top})`);
+    .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const x = d3.scaleLinear()
-      .domain([0, d3.max(data, d => d.value)])
-      .range([0, chartWidth]);
+  const barData = d3.rollup(data, v => v.length, d => d.gender);
+
+  const x = d3.scaleBand()
+    .domain(Array.from(barData.keys()))
+    .range([0, chartWidth])
+    .padding(0.1);
 
   const y = d3.scaleLinear()
-      .domain([0, d3.max(data, d => d.value)])
-      .range([chartHeight, 0]);
+    .domain([0, d3.max(Array.from(barData.values()))])
+    .nice()
+    .range([chartHeight, 0]);
 
   // Axis
   g.append("g")
-      .attr("transform", `translate(0,${chartHeight})`)
-      .call(d3.axisBottom(x).tickSizeOuter(0))
-      .selectAll("line, path")
-      .style("stroke", "#bbb");
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x));
 
   g.append("g")
-      .call(d3.axisLeft(y).tickSizeOuter(0))
-      .selectAll("line, path")
-      .style("stroke", "#bbb");
+    .call(d3.axisLeft(y));
+
+  // Bars
+  g.selectAll(".bar")
+    .data(Array.from(barData))
+    .enter().append("rect")
+    .attr("class", "bar")
+    .attr("x", d => x(d[0]))
+    .attr("y", d => y(d[1]))
+    .attr("width", x.bandwidth())
+    .attr("height", d => chartHeight - y(d[1]))
+    .attr("fill", d => graphConfig.colors[d[0]]);
+}
+
+// >-----------------< Scatter Plot >-------------------<
+function createScatterPlot(containerId, width, height, data) {
+  const svg = d3.select(containerId)
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const margin = {top: 20, right: 20, bottom: 30, left: 40};
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const ages = [...new Set(data.map(d => d.age))].sort((a, b) => a - b);
+
+  const x = d3.scaleBand()
+    .domain(ages)
+    .range([0, chartWidth])
+    .padding(0.1);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.feelDepressed)])
+    .range([chartHeight, 0]);
+
+  // Axis
+  g.append("g")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).tickValues(ages.filter((_, i) => i % 5 === 0)).tickSizeOuter(0))
+    .selectAll("line, path")
+    .style("stroke", "#bbb");
+
+  g.append("g")
+    .call(d3.axisLeft(y).tickSizeOuter(0))
+    .selectAll("line, path")
+    .style("stroke", "#bbb");
 
   // Scatter
   g.selectAll(".dot")
-      .data(data)
-      .enter().append("circle")
-      .attr("class", "dot")
-      .attr("cx", d => x(d.value))
-      .attr("cy", chartHeight)
-      .attr("r", 5)
-      .attr("fill", d => d.color)
-      .attr("opacity", 0.7)
-      .transition()
-      .duration(1000)
-      .attr("cy", d => y(d.value))
-      .delay((d, i) => i * 50);
+    .data(data)
+    .enter().append("circle")
+    .attr("class", "dot")
+    .attr("cx", d => x(d.age) + x.bandwidth() / 2)
+    .attr("cy", d => y(d.feelDepressed))
+    .attr("r", 5)
+    .attr("fill", d => graphConfig.colors[d.gender])
+    .attr("opacity", 0.7);
 
-    svg.selectAll(".dot")
-      .on("mouseenter", function() {
-          d3.select(this)
-              .transition()
-              .duration(200)
-              .attr("r", 8)
-              .attr("fill", "#333");
-      })
-      .on("mouseleave", function() {
-          d3.select(this)
-              .transition()
-              .duration(200)
-              .attr("r", 5)
-              .attr("fill", d => d.color);
-      });
-}
-
-// >-----------------< Initialize Graphs >-------------------<
-function initializeGraphs() {
-    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight);
-    
-    createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight);
-    createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight);
+  svg.selectAll(".dot")
+    .on("mouseenter", function() {
+      d3.select(this)
+        .transition()
+        .duration(200)
+        .attr("r", 8)
+        .attr("fill", "#333");
+    })
+    .on("mouseleave", function() {
+      d3.select(this)
+        .transition()
+        .duration(200)
+        .attr("r", 5)
+        .attr("fill", d => graphConfig.colors[d.gender]);
+    });
 }
 
 document.addEventListener('DOMContentLoaded', initializeGraphs);
