@@ -5,34 +5,65 @@ const graphConfig = {
   sideWidth: 350,
   sideHeight: 250,
   colors: {
-      Male: '#3498db',    // Vibrant blue
-      Female: '#e74c3c',  // Vibrant red
-      Other: '#2ecc71'    // Vibrant green
-  }
+    Male: '#3498db',    // Vibrant blue
+    Female: '#e74c3c',  // Vibrant red
+    Other: '#2ecc71'    // Vibrant green
+  },
+  mentalHealthMetrics: [
+    { key: 'feelDepressed', label: 'Depression Scale' },
+    { key: 'compareScale', label: 'Social Comparison Scale' },
+    { key: 'botherScale', label: 'Worry Scale' },
+    { key: 'feelAnxious', label: 'Anxiety Scale' },
+    { key: 'sleep', label: 'Sleep Issues Scale' },
+    { key: 'concentrationScale', label: 'Concentration Scale' },
+    { key: 'socialValidation', label: 'Social Validation Scale' },
+    { key: 'restlessness', label: 'Restlessness Scale' },
+    { key: 'distractionScale', label: 'Distraction Scale' },
+    { key: 'distractionWhileBusy', label: 'Distraction While Busy Scale' },
+    { key: 'useWithoutPurpose', label: 'Use Without Purpose Scale' }
+  ]
 };
 
 // >-----------------< Data Initialization >-------------------<
 function initializeGraphs() {
   d3.csv("dataset.csv").then(data => {
-      const cleanedData = data.map(d => ({
-          age: parseAge(d["1. What is your age?"]),
-          gender: genderGroup(d["2. Gender"]),
-          socialMediaUsed: socialMediaUsedStringParse(d["7. What social media platforms do you commonly use?"]),
-          socialMediaTime: parseSocialMediaTime(d["8. What is the average time you spend on social media every day?"]), //!Not used  yet
-          distractionScale: parseScale(d["12. On a scale of 1 to 5, how easily distracted are you?"]), //!Not used yet
-          botherScale: parseScale(d["13. On a scale of 1 to 5, how much are you bothered by worries?"]), //!Not used yet
-          compareScale: parseScale(d["15. On a scale of 1-5, how often do you compare yourself to other successful people through the use of social media?"]),
-          feelDepressed: parseScale(d["18. How often do you feel depressed or down?"]),
-          feelAnxious: parseScale(d["19. How often do you feel anxious or nervous?"]), //!Not used yet
-        }));
+    const cleanedData = data.map(d => ({
+      age: parseAge(d["1. What is your age?"]),
+      gender: genderGroup(d["2. Gender"]),
+      relationshipStatus: d["3. Relationship Status"],
+      occupation: d["4. Occupation Status"],
+      organization: d["5. What type of organization are you affiliated with?"],
+      socialMediaUsed: socialMediaUsedStringParse(d["7. What social media platforms do you commonly use?"]),
+      socialMediaTime: parseSocialMediaTime(d["8. What is the average time you spend on social media every day?"]),
+      useWithoutPurpose: parseScale(d["9. How often do you find yourself using Social media without a specific purpose?"]),
+      distractionWhileBusy: parseScale(d["10. How often do you get distracted by Social media when you are busy doing something?"]),
+      restlessness: parseScale(d["11. Do you feel restless if you haven't used Social media in a while?"]),
+      distractionScale: parseScale(d["12. On a scale of 1 to 5, how easily distracted are you?"]),
+      botherScale: parseScale(d["13. On a scale of 1 to 5, how much are you bothered by worries?"]),
+      concentrationScale: parseScale(d["14. Do you find it difficult to concentrate on things?"]),
+      compareScale: parseScale(d["15. On a scale of 1-5, how often do you compare yourself to other successful people through the use of social media?"]),
+      socialValidation: parseScale(d["17. How often do you look to seek validation from features of social media?"]),
+      feelDepressed: parseScale(d["18. How often do you feel depressed or down?"]),
+      feelAnxious: parseScale(d["19. How often do you feel anxious or nervous?"]),
+      sleep: parseScale(d["20. On a scale of 1 to 5, how often do you face issues regarding sleep?"]),
+    }));
 
-      const platformUsageByGender = countPlatformsByGender(cleanedData);
+    const platformUsageByGender = countPlatformsByGender(cleanedData);
 
-      createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, cleanedData);
-      createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight, cleanedData);
-      createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight, platformUsageByGender);
+    const state = {
+      selectedMentalHealthMetric: 'feelDepressed',
+      selectedPlatform: null,
+      selectedGender: null
+    };
+
+    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, cleanedData, state);
+    createLegendForMainGraph("#main-graph", state);
+    createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight, cleanedData, state);
+    createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight, platformUsageByGender, state);
+    
+    setupGraphInteractions(cleanedData, state);
   }).catch(error => {
-      console.error("Error loading or processing data:", error);
+    console.error("Error loading or processing data:", error);
   });
 }
 
@@ -86,7 +117,177 @@ function countPlatformsByGender(data) {
       });
   });
 
-  return platformCounts;
+  const sortedPlatforms = Object.keys(platformCounts).sort((a, b) => {
+      const aTotal = Object.values(platformCounts[a]).reduce((acc, count) => acc + count, 0);
+      const bTotal = Object.values(platformCounts[b]).reduce((acc, count) => acc + count, 0);
+      return aTotal - bTotal;
+  }
+  );
+
+  const sortedPlatformCounts = {};
+  sortedPlatforms.forEach(platform => {
+      sortedPlatformCounts[platform] = platformCounts[platform];
+  });
+
+  return sortedPlatformCounts;
+}
+
+// >-----------------< Scatter Plot >-------------------<
+function setupGraphInteractions(data, state) {
+  const metricSelector = d3.select("#main-graph")
+    .append("select")
+    .attr("class", "metric-selector")
+    .style("position", "absolute")
+    .style("top", "10px")
+    .style("right", "10px");
+
+  metricSelector.selectAll("option")
+    .data(graphConfig.mentalHealthMetrics)
+    .enter()
+    .append("option")
+    .attr("value", d => d.key)
+    .text(d => d.label);
+
+  metricSelector.on("change", function() {
+    state.selectedMentalHealthMetric = this.value;
+    d3.select("#main-graph").selectAll("svg").remove();
+    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, data, state);
+    createLegendForMainGraph("#main-graph", state);
+  });
+}
+
+function createLegendForMainGraph(containerId, state) {
+  const svg = d3.select(containerId).select("svg");
+  const width = parseInt(svg.attr("width"));
+  const height = parseInt(svg.attr("height"));
+
+  const legend = svg.append("g")
+    .attr("class", "legend")
+    .attr("transform", `translate(${width - 100}, 20)`);
+
+  const legendData = [
+    { color: graphConfig.colors.Male, label: 'Male' },
+    { color: graphConfig.colors.Female, label: 'Female' },
+    { color: graphConfig.colors.Other, label: 'Other' }
+  ];
+
+  const legendItems = legend.selectAll(".legend-item")
+    .data(legendData)
+    .enter()
+    .append("g")
+    .attr("class", "legend-item")
+    .attr("transform", (d, i) => `translate(0, ${i * 20})`);
+
+  legendItems.append("rect")
+    .attr("width", 15)
+    .attr("height", 15)
+    .attr("fill", d => d.color);
+
+  legendItems.append("text")
+    .attr("x", 20)
+    .attr("y", 12)
+    .text(d => d.label)
+    .attr("font-size", "12px")
+    .attr("fill", "#333");
+
+  const currentMetric = graphConfig.mentalHealthMetrics.find(m => m.key === state.selectedMentalHealthMetric);
+  svg.append("text")
+    .attr("x", width - 100)
+    .attr("y", height - 20)
+    .text(`Metric: ${currentMetric.label}`)
+    .attr("font-size", "12px")
+    .attr("fill", "#666");
+}
+
+function createScatterPlot(containerId, width, height, data, state) {
+  const svg = d3.select(containerId)
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const margin = {top: 50, right: 120, bottom: 50, left: 40};
+  const chartWidth = width - margin.left - margin.right;
+  const chartHeight = height - margin.top - margin.bottom;
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  const metricKey = state.selectedMentalHealthMetric;
+  const ages = [...new Set(data.map(d => d.age))].sort((a, b) => a - b);
+
+  const x = d3.scaleBand()
+    .domain(ages)
+    .range([0, chartWidth])
+    .padding(0.1);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d[metricKey])])
+    .range([chartHeight, 0]);
+
+  // Axis
+  g.append("g")
+    .attr("transform", `translate(0,${chartHeight})`)
+    .call(d3.axisBottom(x).tickValues(ages.filter((_, i) => i % 5 === 0)).tickSizeOuter(0))
+    .selectAll("line, path")
+    .style("stroke", "#bbb");
+
+  g.append("g")
+    .call(d3.axisLeft(y).tickSizeOuter(0))
+    .selectAll("line, path")
+    .style("stroke", "#bbb");
+
+  // X-axis label
+  svg.append("text")
+    .attr("transform", `translate(${width/2}, ${height - 10})`)
+    .style("text-anchor", "middle")
+    .text("Age");
+
+  // Y-axis label
+  svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 15)
+    .attr("x", -height/2)
+    .style("text-anchor", "middle")
+    .text(graphConfig.mentalHealthMetrics.find(m => m.key === metricKey).label);
+
+  // Scatter
+  g.selectAll(".dot")
+    .data(data)
+    .enter().append("circle")
+    .attr("class", "dot")
+    .attr("cx", d => x(d.age) + x.bandwidth() / 2)
+    .attr("cy", d => y(d[metricKey]))
+    .attr("r", 5)
+    .attr("fill", d => graphConfig.colors[d.gender])
+    .attr("opacity", 0.7);
+
+  svg.selectAll(".dot")
+    .on("mouseenter", function(event, d) {
+      d3.select(this)
+        .transition()
+        .duration(200)
+        .attr("r", 8)
+        .attr("fill", "#333");
+      
+      // Show tooltip
+      svg.append("text")
+        .attr("class", "tooltip")
+        .attr("x", x(d.age) + x.bandwidth() / 2 + margin.left)
+        .attr("y", y(d[metricKey]) + margin.top - 10)
+        .attr("text-anchor", "middle")
+        .text(`Age: ${d.age}, ${graphConfig.mentalHealthMetrics.find(m => m.key === metricKey).label}: ${d[metricKey]}`)
+        .attr("font-size", "12px")
+        .attr("fill", "#666");
+    })
+    .on("mouseleave", function() {
+      d3.select(this)
+        .transition()
+        .duration(200)
+        .attr("r", 5)
+        .attr("fill", d => graphConfig.colors[d.gender]);
+      
+      svg.select(".tooltip").remove();
+    });
 }
 
 // >-----------------< Donut Chart >-------------------<
@@ -251,71 +452,6 @@ function createBarGraph(containerId, width, height, data) {
     .attr("width", x.bandwidth())
     .attr("height", d => chartHeight - y(d[1]))
     .attr("fill", d => graphConfig.colors[d[0]]);
-}
-
-// >-----------------< Scatter Plot >-------------------<
-function createScatterPlot(containerId, width, height, data) {
-  const svg = d3.select(containerId)
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
-
-  const margin = {top: 20, right: 20, bottom: 30, left: 40};
-  const chartWidth = width - margin.left - margin.right;
-  const chartHeight = height - margin.top - margin.bottom;
-
-  const g = svg.append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
-
-  const ages = [...new Set(data.map(d => d.age))].sort((a, b) => a - b);
-
-  const x = d3.scaleBand()
-    .domain(ages)
-    .range([0, chartWidth])
-    .padding(0.1);
-
-  const y = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.feelDepressed)])
-    .range([chartHeight, 0]);
-
-  // Axis
-  g.append("g")
-    .attr("transform", `translate(0,${chartHeight})`)
-    .call(d3.axisBottom(x).tickValues(ages.filter((_, i) => i % 5 === 0)).tickSizeOuter(0))
-    .selectAll("line, path")
-    .style("stroke", "#bbb");
-
-  g.append("g")
-    .call(d3.axisLeft(y).tickSizeOuter(0))
-    .selectAll("line, path")
-    .style("stroke", "#bbb");
-
-  // Scatter
-  g.selectAll(".dot")
-    .data(data)
-    .enter().append("circle")
-    .attr("class", "dot")
-    .attr("cx", d => x(d.age) + x.bandwidth() / 2)
-    .attr("cy", d => y(d.feelDepressed))
-    .attr("r", 5)
-    .attr("fill", d => graphConfig.colors[d.gender])
-    .attr("opacity", 0.7);
-
-  svg.selectAll(".dot")
-    .on("mouseenter", function() {
-      d3.select(this)
-        .transition()
-        .duration(200)
-        .attr("r", 8)
-        .attr("fill", "#333");
-    })
-    .on("mouseleave", function() {
-      d3.select(this)
-        .transition()
-        .duration(200)
-        .attr("r", 5)
-        .attr("fill", d => graphConfig.colors[d.gender]);
-    });
 }
 
 document.addEventListener('DOMContentLoaded', initializeGraphs);
