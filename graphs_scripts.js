@@ -5,9 +5,9 @@ const graphConfig = {
   sideWidth: 350,
   sideHeight: 250,
   colors: {
-    Male: '#3498db',    // Vibrant blue
-    Female: '#e74c3c',  // Vibrant red
-    Other: '#2ecc71'    // Vibrant green
+    Male: '#285AAD',    // Vibrant blue
+    Female: '#EA2F33',  // Vibrant red
+    Other: '#9DC518'    // Vibrant green
   },
   mentalHealthMetrics: [
     { key: 'feelDepressed', label: 'Depression Scale' },
@@ -67,7 +67,7 @@ function initializeGraphs() {
     createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight, cleanedData, state);
     createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight, platformUsageByGender, timeUsageByGender, state);
     
-    setupGraphInteractions(cleanedData, state);
+    setupScatterPlotInteractions(cleanedData, state);
     setupDonutChartInteractions(cleanedData, platformUsageByGender, timeUsageByGender, state);
 
   }).catch(error => {
@@ -166,7 +166,7 @@ function countSocialMediaTimeByGender(data) {
 }
 
 // >-----------------< Scatter Plot >-------------------<
-function setupGraphInteractions(data, state) {
+function setupScatterPlotInteractions(data, state) {
   const mainGraph = d3.select("#main-graph");
   const metricSelector = mainGraph
     .append("select")
