@@ -28,6 +28,7 @@ const graphConfig = {
   ]
 };
 
+
 // >-----------------< Data Initialization >-------------------<
 function initializeGraphs() {
   d3.csv("dataset.csv").then(data => {
@@ -59,6 +60,7 @@ function initializeGraphs() {
       selectedMentalHealthMetric: 'feelDepressed',
       selectedSocialMediaVisualization: 'platforms',
       selectedPlatform: null,
+      selectedOccupation: null,
       selectedGender: null
     };
 
@@ -76,21 +78,11 @@ function initializeGraphs() {
   });
 }
 
+
 // >-----------------< Helper Functions >-------------------<
 function parseAge(ageString) {
   const age = parseInt(ageString, 10);
   return isNaN(age) ? null : age;
-}
-
-//! Currently not used REMOVE in final delivery
-function ageGap(age) {
-  if (age === null) return "Unknown";
-  if (age < 18) return "Under 18";
-  if (age < 25) return "18-24";
-  if (age < 35) return "25-34";
-  if (age < 45) return "35-44";
-  if (age < 55) return "45-54";
-  return "55+";
 }
 
 function genderGroup(gender) {
@@ -166,7 +158,42 @@ function countSocialMediaTimeByGender(data) {
   return timeUsageByGender;
 }
 
-// >-----------------< Scatter Plot >-------------------<
+
+// >-----------------< Visualization Update >-------------------<
+function updateAllVisualizations(data, state) {
+  const filteredData = data.filter(d => {
+    const platformMatch = state.selectedPlatform ? 
+      d.socialMediaUsed.includes(state.selectedPlatform) : true;
+    
+    const occupationMatch = state.selectedOccupation ? 
+      d.occupation === state.selectedOccupation : true;
+    
+    const genderMatch = state.selectedGender ? 
+      d.gender === state.selectedGender : true;
+    
+    return platformMatch && occupationMatch && genderMatch;
+  });
+
+  d3.select("#main-graph").selectAll("svg").remove();
+  createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
+  createLegendForMainGraph("#main-graph", state);
+  setupScatterPlotInteractions(data, state);
+}
+
+// >-----------------< Tooltip Creation >-------------------<
+function createTooltip() {
+  return d3.select("body").append("div")
+        .attr("class", "tooltip")
+        .style("position", "absolute")
+        .style("visibility", "hidden")
+        .style("background", "#fff")
+        .style("padding", "10px")
+        .style("border", "1px solid #ccc")
+        .style("border-radius", "4px")
+        .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
+}
+
+// >-----------------< Scatter Plot Interactions >-------------------<
 function setupScatterPlotInteractions(data, state) {
   const mainGraph = d3.select("#main-graph");
   const metricSelector = mainGraph
@@ -180,57 +207,44 @@ function setupScatterPlotInteractions(data, state) {
     .attr("value", d => d.key)
     .text(d => d.label);
 
+  metricSelector.property("value", state.selectedMentalHealthMetric);
+
   metricSelector.on("change", function() {
     state.selectedMentalHealthMetric = this.value;
-    mainGraph.selectAll("svg").remove();
-    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, data, state);
-    createLegendForMainGraph("#main-graph", state);
+    updateAllVisualizations(data, state);
   });
 }
 
-function createLegendForMainGraph(containerId, state) {
-  const svg = d3.select(containerId).select("svg");
-  const width = parseInt(svg.attr("width"));
-  const height = parseInt(svg.attr("height"));
-
-  const legend = svg.append("g")
-    .attr("class", "legend")
-    .attr("transform", `translate(${width - 100}, 20)`);
-
-  const legendData = [
-    { color: graphConfig.colors.Male, label: 'Male' },
-    { color: graphConfig.colors.Female, label: 'Female' },
-    { color: graphConfig.colors.Other, label: 'Other' }
-  ];
-
-  const legendItems = legend.selectAll(".legend-item")
-    .data(legendData)
-    .enter()
-    .append("g")
-    .attr("class", "legend-item")
-    .attr("transform", (d, i) => `translate(0, ${i * 20})`);
-
-  legendItems.append("rect")
-    .attr("width", 15)
-    .attr("height", 15)
-    .attr("fill", d => d.color);
-
-  legendItems.append("text")
-    .attr("x", 20)
-    .attr("y", 12)
-    .text(d => d.label)
-    .attr("font-size", "12px")
-    .attr("fill", "#333");
-
-  const currentMetric = graphConfig.mentalHealthMetrics.find(m => m.key === state.selectedMentalHealthMetric);
-  svg.append("text")
-    .attr("x", width - 100)
-    .attr("y", height - 20)
-    .text(`Metric: ${currentMetric.label}`)
-    .attr("font-size", "12px")
-    .attr("fill", "#666");
+// >-----------------< Donut Chart Interactions >-------------------<
+function setupDonutChartInteractions(data, platformUsageByGender, timeUsageByGender, state) {
+  const svg = d3.select("#side-graph-2 svg");
+  
+  svg.selectAll(".arc")
+    .on("click", function(event, d) {
+      const selectedPlatform = d.category;
+      
+      state.selectedPlatform = state.selectedPlatform === selectedPlatform ? null : selectedPlatform;
+      
+      updateAllVisualizations(data, state);
+    });
 }
 
+// >-----------------< Bar Graph Interactions >-------------------<
+function setupBarGraphInteractions(data, platformUsageByGender, timeUsageByGender, state) {
+  const svg = d3.select("#side-graph-1 svg");
+
+  svg.selectAll(".bar")
+    .on("click", function(event, d) {
+      const selectedOccupation = d.data.occupation;
+      
+      state.selectedOccupation = state.selectedOccupation === selectedOccupation ? null : selectedOccupation;
+      
+      updateAllVisualizations(data, state);
+    });
+}
+
+// >-----------------< Graph Creation >-------------------<
+// Scatter Plot >----<
 function createScatterPlot(containerId, width, height, data, state) {
   const svg = d3.select(containerId)
     .append("svg")
@@ -247,8 +261,8 @@ function createScatterPlot(containerId, width, height, data, state) {
   const metricKey = state.selectedMentalHealthMetric;
 
   const x = d3.scaleLinear()
-    .domain(d3.extent(data, d => d.age))
-    .range([0, chartWidth]);
+  .domain([10, 70])
+  .range([0, chartWidth]);
 
   const y = d3.scaleLinear()
     .domain([0, d3.max(data, d => d[metricKey])])
@@ -301,16 +315,7 @@ function createScatterPlot(containerId, width, height, data, state) {
     .attr("fill", d => graphConfig.colors[d.gender])
     .attr("opacity", 0.7);
 
-  // Tooltip container
-  const tooltip = d3.select("body").append("div")
-      .attr("class", "tooltip")
-      .style("position", "absolute")
-      .style("visibility", "hidden")
-      .style("background", "#fff")
-      .style("padding", "10px")
-      .style("border", "1px solid #ccc")
-      .style("border-radius", "4px")
-      .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
+  const tooltip = createTooltip();
 
   svg.selectAll(".dot")
     .on("mouseenter", function(event, d) {
@@ -335,33 +340,52 @@ function createScatterPlot(containerId, width, height, data, state) {
       tooltip.style("visibility", "hidden");
     });
 }
-// >-----------------< Donut Chart >-------------------<
-function setupDonutChartInteractions(data, platformUsageByGender, timeUsageByGender, state) {
-  const svg = d3.select("#side-graph-2 svg");
 
-  svg.selectAll(".arc")
-    .on("click", function(event, d) {
-      const selectedPlatform = d.category;
-      if (state.selectedPlatform === selectedPlatform) {
-        state.selectedPlatform = null;
-      } else {
-        state.selectedPlatform = selectedPlatform;
-      }
-      updateScatterPlot(data, state);
-    });
+// Legend >----<
+function createLegendForMainGraph(containerId, state) {
+  const svg = d3.select(containerId).select("svg");
+  const width = parseInt(svg.attr("width"));
+  const height = parseInt(svg.attr("height"));
 
-  function updateScatterPlot(data, state) {
-    const filteredData = data.filter(d => {
-      return (state.selectedPlatform ? d.socialMediaUsed.includes(state.selectedPlatform) : true);
-    });
+  const legend = svg.append("g")
+    .attr("class", "legend")
+    .attr("transform", `translate(${width - 100}, 20)`);
 
-    d3.select("#main-graph").selectAll("svg").remove();
-    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
-    createLegendForMainGraph("#main-graph", state);
-  }
+  const legendData = [
+    { color: graphConfig.colors.Male, label: 'Male' },
+    { color: graphConfig.colors.Female, label: 'Female' },
+    { color: graphConfig.colors.Other, label: 'Other' }
+  ];
+
+  const legendItems = legend.selectAll(".legend-item")
+    .data(legendData)
+    .enter()
+    .append("g")
+    .attr("class", "legend-item")
+    .attr("transform", (d, i) => `translate(0, ${i * 20})`);
+
+  legendItems.append("rect")
+    .attr("width", 15)
+    .attr("height", 15)
+    .attr("fill", d => d.color);
+
+  legendItems.append("text")
+    .attr("x", 20)
+    .attr("y", 12)
+    .text(d => d.label)
+    .attr("font-size", "12px")
+    .attr("fill", "#333");
+
+  const currentMetric = graphConfig.mentalHealthMetrics.find(m => m.key === state.selectedMentalHealthMetric);
+  svg.append("text")
+    .attr("x", width - 100)
+    .attr("y", height - 20)
+    .text(`Metric: ${currentMetric.label}`)
+    .attr("font-size", "12px")
+    .attr("fill", "#666");
 }
 
-
+// Donut Chart >----<
 function createDonutChart(containerId, width, height, platformUsageByGender, timeUsageByGender, state) {
   const svg = d3.select(containerId).select("svg");
   if (svg.size() > 0) svg.remove();
@@ -401,16 +425,7 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
     const innerRadius = 20;
     const outerRadius = Math.min(width, height) / 2 + 10;
 
-    // Tooltip container
-    const tooltip = d3.select("body").append("div")
-      .attr("class", "tooltip")
-      .style("position", "absolute")
-      .style("visibility", "hidden")
-      .style("background", "#fff")
-      .style("padding", "10px")
-      .style("border", "1px solid #ccc")
-      .style("border-radius", "4px")
-      .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
+    const tooltip = createTooltip();
 
     const data = Object.entries(currentData).flatMap(([category, counts]) => 
       genders.map((gender, genderIndex) => ({
@@ -510,33 +525,7 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
   });
 }
 
-
-// >-----------------< Bar Graph >-------------------<
-function setupBarGraphInteractions(data, platformUsageByGender, timeUsageByGender, state) {
-  const svg = d3.select("#side-graph-1 svg");
-
-  svg.selectAll(".bar")
-    .on("click", function(event, d) {
-      const selectedOccupation = d.data.occupation;
-      if (state.selectedOccupation === selectedOccupation) {
-        state.selectedOccupation = null;
-      } else {
-        state.selectedOccupation = selectedOccupation;
-      }
-      updateScatterPlot(data, state);
-    });
-
-  function updateScatterPlot(data, state) {
-    const filteredData = data.filter(d => {
-      return (state.selectedOccupation ? d.occupation === state.selectedOccupation : true);
-    });
-
-    d3.select("#main-graph").selectAll("svg").remove();
-    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
-    createLegendForMainGraph("#main-graph", state);
-  }
-}
-
+// Bar Graph >----<
 function createBarGraph(containerId, width, height, data) {
   const svg = d3.select(containerId)
     .append("svg")
@@ -642,16 +631,7 @@ function createBarGraph(containerId, width, height, data) {
         .attr("opacity", 1);
     });
 
-  //Tooltip container
-  const tooltip = d3.select("body").append("div")
-    .attr("class", "tooltip")
-    .style("position", "absolute")
-    .style("visibility", "hidden")
-    .style("background", "#fff")
-    .style("padding", "10px")
-    .style("border", "1px solid #ccc")
-    .style("border-radius", "4px")
-    .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
+  const tooltip = createTooltip();
 
   // Y-axis label
   svg.append("text")
