@@ -167,16 +167,6 @@ function countSocialMediaTimeByGender(data) {
 }
 
 // >-----------------< Scatter Plot >-------------------<
-function updateScatterPlot(data, state) {
-  const filteredData = data.filter(d => {
-    return (state.selectedPlatform ? d.socialMediaUsed.includes(state.selectedPlatform) : true);
-  });
-
-  d3.select("#main-graph").selectAll("svg").remove();
-  createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
-  createLegendForMainGraph("#main-graph", state);
-}
-
 function setupScatterPlotInteractions(data, state) {
   const mainGraph = d3.select("#main-graph");
   const metricSelector = mainGraph
@@ -352,9 +342,23 @@ function setupDonutChartInteractions(data, platformUsageByGender, timeUsageByGen
   svg.selectAll(".arc")
     .on("click", function(event, d) {
       const selectedPlatform = d.category;
-      state.selectedPlatform = selectedPlatform;
+      if (state.selectedPlatform === selectedPlatform) {
+        state.selectedPlatform = null;
+      } else {
+        state.selectedPlatform = selectedPlatform;
+      }
       updateScatterPlot(data, state);
     });
+
+  function updateScatterPlot(data, state) {
+    const filteredData = data.filter(d => {
+      return (state.selectedPlatform ? d.socialMediaUsed.includes(state.selectedPlatform) : true);
+    });
+
+    d3.select("#main-graph").selectAll("svg").remove();
+    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
+    createLegendForMainGraph("#main-graph", state);
+  }
 }
 
 
@@ -513,10 +517,24 @@ function setupBarGraphInteractions(data, platformUsageByGender, timeUsageByGende
 
   svg.selectAll(".bar")
     .on("click", function(event, d) {
-      const selectedGender = d3.select(this).attr("data-gender");
-      state.selectedGender = selectedGender;
+      const selectedOccupation = d.data.occupation;
+      if (state.selectedOccupation === selectedOccupation) {
+        state.selectedOccupation = null;
+      } else {
+        state.selectedOccupation = selectedOccupation;
+      }
       updateScatterPlot(data, state);
     });
+
+  function updateScatterPlot(data, state) {
+    const filteredData = data.filter(d => {
+      return (state.selectedOccupation ? d.occupation === state.selectedOccupation : true);
+    });
+
+    d3.select("#main-graph").selectAll("svg").remove();
+    createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
+    createLegendForMainGraph("#main-graph", state);
+  }
 }
 
 function createBarGraph(containerId, width, height, data) {
