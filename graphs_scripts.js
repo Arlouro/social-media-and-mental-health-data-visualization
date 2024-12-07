@@ -236,7 +236,7 @@ function createScatterPlot(containerId, width, height, data, state) {
     .attr("width", width)
     .attr("height", height);
 
-  const margin = {top: 50, right: 120, bottom: 50, left: 40};
+  const margin = { top: 60, right: 150, bottom: 70, left: 60 };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
@@ -244,12 +244,10 @@ function createScatterPlot(containerId, width, height, data, state) {
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
   const metricKey = state.selectedMentalHealthMetric;
-  const ages = [...new Set(data.map(d => d.age))].sort((a, b) => a - b);
 
-  const x = d3.scaleBand()
-    .domain(ages)
-    .range([0, chartWidth])
-    .padding(0.1);
+  const x = d3.scaleLinear()
+    .domain(d3.extent(data, d => d.age))
+    .range([0, chartWidth]);
 
   const y = d3.scaleLinear()
     .domain([0, d3.max(data, d => d[metricKey])])
@@ -258,27 +256,37 @@ function createScatterPlot(containerId, width, height, data, state) {
   // Axis
   g.append("g")
     .attr("transform", `translate(0,${chartHeight})`)
-    .call(d3.axisBottom(x).tickValues(ages.filter((_, i) => i % 5 === 0)).tickSizeOuter(0))
-    .selectAll("line, path")
-    .style("stroke", "#bbb");
+    .call(d3.axisBottom(x).tickSizeOuter(0))
+    .selectAll("text")
+    .style("text-anchor", "center")
+    .attr("dy", "0.8em")
+    .style("font-size", "12px")
+    .style("fill", "#555");
 
   g.append("g")
     .call(d3.axisLeft(y).tickSizeOuter(0))
-    .selectAll("line, path")
-    .style("stroke", "#bbb");
+    .selectAll("text")
+    .style("font-size", "12px")
+    .style("fill", "#555");
 
   // X-axis label
   svg.append("text")
-    .attr("transform", `translate(${width/2}, ${height - 10})`)
+    .attr("transform", `translate(${width / 2}, ${height - margin.bottom / 2})`)
     .style("text-anchor", "middle")
+    .style("font-size", "14px")
+    .style("font-weight", "bold")
+    .style("fill", "#333")
     .text("Age");
 
   // Y-axis label
   svg.append("text")
     .attr("transform", "rotate(-90)")
-    .attr("y", 15)
-    .attr("x", -height/2)
+    .attr("y", margin.left / 3)
+    .attr("x", 0 - height / 2)
     .style("text-anchor", "middle")
+    .style("font-size", "14px")
+    .style("font-weight", "bold")
+    .style("fill", "#333")
     .text(graphConfig.mentalHealthMetrics.find(m => m.key === metricKey).label);
 
   // Scatter
@@ -286,11 +294,22 @@ function createScatterPlot(containerId, width, height, data, state) {
     .data(data)
     .enter().append("circle")
     .attr("class", "dot")
-    .attr("cx", d => x(d.age) + x.bandwidth() / 2)
+    .attr("cx", d => x(d.age))
     .attr("cy", d => y(d[metricKey]))
     .attr("r", 5)
     .attr("fill", d => graphConfig.colors[d.gender])
     .attr("opacity", 0.7);
+
+  // Tooltip container
+  const tooltip = d3.select("body").append("div")
+      .attr("class", "tooltip")
+      .style("position", "absolute")
+      .style("visibility", "hidden")
+      .style("background", "#fff")
+      .style("padding", "10px")
+      .style("border", "1px solid #ccc")
+      .style("border-radius", "4px")
+      .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
 
   svg.selectAll(".dot")
     .on("mouseenter", function(event, d) {
@@ -299,28 +318,22 @@ function createScatterPlot(containerId, width, height, data, state) {
         .duration(200)
         .attr("r", 8)
         .attr("fill", "#333");
-      
-      // Show tooltip
-      svg.append("text")
-        .attr("class", "tooltip")
-        .attr("x", x(d.age) + x.bandwidth() / 2 + margin.left)
-        .attr("y", y(d[metricKey]) + margin.top - 10)
-        .attr("text-anchor", "middle")
-        .text(`Age: ${d.age}, ${graphConfig.mentalHealthMetrics.find(m => m.key === metricKey).label}: ${d[metricKey]}`)
-        .attr("font-size", "12px")
-        .attr("fill", "#666");
+    })
+    .on("mousemove", function(event, d) {
+      tooltip.style("visibility", "visible")
+        .text(`${d.age} years old - ${d[metricKey]}`);
+      tooltip.style("top", `${event.pageY + 5}px`)
+        .style("left", `${event.pageX + 5}px`);
     })
     .on("mouseleave", function() {
       d3.select(this)
-        .transition()
-        .duration(200)
-        .attr("r", 5)
-        .attr("fill", d => graphConfig.colors[d.gender]);
-      
-      svg.select(".tooltip").remove();
+      .transition()
+      .duration(200)
+      .attr("r", 5)
+      .attr("fill", d => graphConfig.colors[d.gender]);
+      tooltip.style("visibility", "hidden");
     });
 }
-
 // >-----------------< Donut Chart >-------------------<
 function createDonutChart(containerId, width, height, platformUsageByGender, timeUsageByGender, state) {
   const svg = d3.select(containerId).select("svg");
@@ -478,36 +491,37 @@ function createBarGraph(containerId, width, height, data) {
     .attr("width", width)
     .attr("height", height);
 
-  const margin = {top: 20, right: 20, bottom: 50, left: 40};
+  const margin = { top: 20, right: 20, bottom: 50, left: 60 };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const occupationData = d3.rollups(data, 
-    v => v.length, 
-    d => d.occupation, 
-    d => d.gender
+  const occupationData = d3.rollups(
+    data,
+    (v) => v.length,
+    (d) => d.occupation,
+    (d) => d.gender
   );
 
   const stackedData = occupationData.map(([occupation, genderCounts]) => {
     return {
       occupation,
       ...Object.fromEntries(genderCounts),
-      total: genderCounts.reduce((sum, [, count]) => sum + count, 0)
+      total: genderCounts.reduce((sum, [, count]) => sum + count, 0),
     };
   });
 
   stackedData.sort((a, b) => b.total - a.total);
 
   const x = d3.scaleBand()
-    .domain(stackedData.map(d => d.occupation))
+    .domain(stackedData.map((d) => d.occupation))
     .range([0, chartWidth])
     .padding(0.1);
 
   const y = d3.scaleLinear()
-    .domain([0, d3.max(stackedData, d => d.total)])
+    .domain([0, d3.max(stackedData, (d) => d.total)])
     .nice()
     .range([chartHeight, 0]);
 
@@ -520,7 +534,7 @@ function createBarGraph(containerId, width, height, data) {
 
   const series = stack(stackedData);
 
-  // Axis
+  // X-axis
   g.append("g")
     .attr("transform", `translate(0,${chartHeight})`)
     .call(d3.axisBottom(x))
@@ -530,31 +544,39 @@ function createBarGraph(containerId, width, height, data) {
     .attr("dy", ".15em")
     .attr("transform", "rotate(-45)");
 
+  // Y-axis
   g.append("g")
-    .call(d3.axisLeft(y));
+    .call(d3.axisLeft(y).ticks(5).tickSizeOuter(0))
+    .selectAll("text")
+    .style("font-size", "12px")
+    .style("fill", "#555");
 
   // Bars
   g.selectAll(".series")
     .data(series)
-    .enter().append("g")
-      .attr("class", "series")
-      .attr("fill", d => graphConfig.colors[d.key])
+    .enter()
+    .append("g")
+    .attr("class", "series")
+    .attr("fill", (d) => graphConfig.colors[d.key])
     .selectAll("rect")
-    .data(d => d)
-    .enter().append("rect")
-      .attr("x", (d, i) => x(stackedData[i].occupation))
-      .attr("y", d => y(d[1]))
-      .attr("height", d => y(d[0]) - y(d[1]))
-      .attr("width", x.bandwidth());
+    .data((d) => d)
+    .enter()
+    .append("rect")
+    .attr("x", (d, i) => x(stackedData[i].occupation))
+    .attr("y", (d) => y(d[1]))
+    .attr("height", (d) => y(d[0]) - y(d[1]))
+    .attr("width", x.bandwidth());
 
-  // Add a title to the y-axis
   svg.append("text")
     .attr("transform", "rotate(-90)")
-    .attr("y", 0)
-    .attr("x", 0 - (height / 2))
-    .attr("dy", "1em")
+    .attr("y", margin.left / 3)
+    .attr("x", 0 - height / 2)
     .style("text-anchor", "middle")
+    .style("font-size", "12px")
+    .style("font-weight", "bold")
+    .style("fill", "#333")
     .text("Number of Participants");
 }
+
 
 document.addEventListener('DOMContentLoaded', initializeGraphs);
