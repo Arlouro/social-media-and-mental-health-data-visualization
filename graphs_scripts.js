@@ -5,9 +5,9 @@ const graphConfig = {
   sideWidth: 350,
   sideHeight: 250,
   colors: {
-    Male: '#285AAD',    // Vibrant blue
-    Female: '#EA2F33',  // Vibrant red
-    Other: '#9DC518'    // Vibrant green
+    Male: '#285AAD',    
+    Female: '#EA2F33',  
+    Other: '#9DC518'
   },
   mentalHealthMetrics: [
     { key: 'feelDepressed', label: 'Depression Scale' },
@@ -69,6 +69,7 @@ function initializeGraphs() {
     
     setupScatterPlotInteractions(cleanedData, state);
     setupDonutChartInteractions(cleanedData, platformUsageByGender, timeUsageByGender, state);
+    setupBarGraphInteractions(cleanedData, platformUsageByGender, timeUsageByGender, state);
 
   }).catch(error => {
     console.error("Error loading or processing data:", error);
@@ -166,6 +167,16 @@ function countSocialMediaTimeByGender(data) {
 }
 
 // >-----------------< Scatter Plot >-------------------<
+function updateScatterPlot(data, state) {
+  const filteredData = data.filter(d => {
+    return (state.selectedPlatform ? d.socialMediaUsed.includes(state.selectedPlatform) : true);
+  });
+
+  d3.select("#main-graph").selectAll("svg").remove();
+  createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
+  createLegendForMainGraph("#main-graph", state);
+}
+
 function setupScatterPlotInteractions(data, state) {
   const mainGraph = d3.select("#main-graph");
   const metricSelector = mainGraph
@@ -335,6 +346,18 @@ function createScatterPlot(containerId, width, height, data, state) {
     });
 }
 // >-----------------< Donut Chart >-------------------<
+function setupDonutChartInteractions(data, platformUsageByGender, timeUsageByGender, state) {
+  const svg = d3.select("#side-graph-2 svg");
+
+  svg.selectAll(".arc")
+    .on("click", function(event, d) {
+      const selectedPlatform = d.category;
+      state.selectedPlatform = selectedPlatform;
+      updateScatterPlot(data, state);
+    });
+}
+
+
 function createDonutChart(containerId, width, height, platformUsageByGender, timeUsageByGender, state) {
   const svg = d3.select(containerId).select("svg");
   if (svg.size() > 0) svg.remove();
@@ -485,6 +508,17 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
 
 
 // >-----------------< Bar Graph >-------------------<
+function setupBarGraphInteractions(data, platformUsageByGender, timeUsageByGender, state) {
+  const svg = d3.select("#side-graph-1 svg");
+
+  svg.selectAll(".bar")
+    .on("click", function(event, d) {
+      const selectedGender = d3.select(this).attr("data-gender");
+      state.selectedGender = selectedGender;
+      updateScatterPlot(data, state);
+    });
+}
+
 function createBarGraph(containerId, width, height, data) {
   const svg = d3.select(containerId)
     .append("svg")
@@ -565,8 +599,43 @@ function createBarGraph(containerId, width, height, data) {
     .attr("x", (d, i) => x(stackedData[i].occupation))
     .attr("y", (d) => y(d[1]))
     .attr("height", (d) => y(d[0]) - y(d[1]))
-    .attr("width", x.bandwidth());
+    .attr("width", x.bandwidth())
+    .attr("class", "bar")
+    .on("mouseover", function(event, d) {
+      tooltip.style("visibility", "visible")
+        .text(`${d.data.occupation} - ${d.key}: ${d[1] - d[0]}`);
+    })
+    .on("mousemove", function(event) {
+      tooltip.style("top", `${event.pageY + 5}px`)
+        .style("left", `${event.pageX + 5}px`);
+    })
+    .on("mouseout", function() {
+      tooltip.style("visibility", "hidden");
+    })
+    .on("mouseenter", function() {
+      d3.select(this)
+        .transition()
+        .attr("opacity", 0.7);
+    })
+    .on("mouseleave", function() {
+      d3.select(this)
+        .transition()
+        .duration(200)
+        .attr("opacity", 1);
+    });
 
+  //Tooltip container
+  const tooltip = d3.select("body").append("div")
+    .attr("class", "tooltip")
+    .style("position", "absolute")
+    .style("visibility", "hidden")
+    .style("background", "#fff")
+    .style("padding", "10px")
+    .style("border", "1px solid #ccc")
+    .style("border-radius", "4px")
+    .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
+
+  // Y-axis label
   svg.append("text")
     .attr("transform", "rotate(-90)")
     .attr("y", margin.left / 3)
@@ -577,6 +646,5 @@ function createBarGraph(containerId, width, height, data) {
     .style("fill", "#333")
     .text("Number of Participants");
 }
-
 
 document.addEventListener('DOMContentLoaded', initializeGraphs);
