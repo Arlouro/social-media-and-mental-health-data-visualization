@@ -413,43 +413,83 @@ function createBarGraph(containerId, width, height, data) {
     .attr("width", width)
     .attr("height", height);
 
-  const margin = {top: 20, right: 20, bottom: 30, left: 40};
+  const margin = {top: 20, right: 20, bottom: 50, left: 40};
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const barData = d3.rollup(data, v => v.length, d => d.gender);
+  const occupationData = d3.rollups(data, 
+    v => v.length, 
+    d => d.occupation, 
+    d => d.gender
+  );
+
+  const stackedData = occupationData.map(([occupation, genderCounts]) => {
+    return {
+      occupation,
+      ...Object.fromEntries(genderCounts),
+      total: genderCounts.reduce((sum, [, count]) => sum + count, 0)
+    };
+  });
+
+  stackedData.sort((a, b) => b.total - a.total);
 
   const x = d3.scaleBand()
-    .domain(Array.from(barData.keys()))
+    .domain(stackedData.map(d => d.occupation))
     .range([0, chartWidth])
     .padding(0.1);
 
   const y = d3.scaleLinear()
-    .domain([0, d3.max(Array.from(barData.values()))])
+    .domain([0, d3.max(stackedData, d => d.total)])
     .nice()
     .range([chartHeight, 0]);
+
+  const genders = ["Male", "Female", "Other"];
+
+  const stack = d3.stack()
+    .keys(genders)
+    .order(d3.stackOrderNone)
+    .offset(d3.stackOffsetNone);
+
+  const series = stack(stackedData);
 
   // Axis
   g.append("g")
     .attr("transform", `translate(0,${chartHeight})`)
-    .call(d3.axisBottom(x));
+    .call(d3.axisBottom(x))
+    .selectAll("text")
+    .style("text-anchor", "end")
+    .attr("dx", "-.8em")
+    .attr("dy", ".15em")
+    .attr("transform", "rotate(-45)");
 
   g.append("g")
     .call(d3.axisLeft(y));
 
   // Bars
-  g.selectAll(".bar")
-    .data(Array.from(barData))
+  g.selectAll(".series")
+    .data(series)
+    .enter().append("g")
+      .attr("class", "series")
+      .attr("fill", d => graphConfig.colors[d.key])
+    .selectAll("rect")
+    .data(d => d)
     .enter().append("rect")
-    .attr("class", "bar")
-    .attr("x", d => x(d[0]))
-    .attr("y", d => y(d[1]))
-    .attr("width", x.bandwidth())
-    .attr("height", d => chartHeight - y(d[1]))
-    .attr("fill", d => graphConfig.colors[d[0]]);
+      .attr("x", (d, i) => x(stackedData[i].occupation))
+      .attr("y", d => y(d[1]))
+      .attr("height", d => y(d[0]) - y(d[1]))
+      .attr("width", x.bandwidth());
+
+  // Add a title to the y-axis
+  svg.append("text")
+    .attr("transform", "rotate(-90)")
+    .attr("y", 0)
+    .attr("x", 0 - (height / 2))
+    .attr("dy", "1em")
+    .style("text-anchor", "middle")
+    .text("Number of Participants");
 }
 
 document.addEventListener('DOMContentLoaded', initializeGraphs);

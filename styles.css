@@ -1,4 +1,6 @@
 :root {
+    --bg-primary: #f4f7fa;
+    --bg-secondary: #ffffff;
     --bg-primary: #f4f6f9;
     --text-primary: #2c3e50;
     --accent-blue: #3498db;
@@ -151,10 +153,21 @@ svg {
 }
 
 footer {
-    margin-top: 30px;
+    margin-top: 50px;
     text-align: center;
+    color: var(--text-secondary);
     font-size: 0.9rem;
-    color: var(--text-primary);
+}
+
+footer a {
+    color: var(--accent-blue);
+    text-decoration: none;
+    transition: color var(--transition-speed) ease;
+}
+
+footer a:hover {
+    color: var(--accent-blue-dark);
+    text-decoration: underline;
 }
 
 select {
