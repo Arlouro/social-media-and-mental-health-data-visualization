@@ -1,7 +1,7 @@
 // >-----------------< Graph Config >-------------------<
 const graphConfig = {
-  mainWidth: 600,
-  mainHeight: 600,
+  mainWidth: 680,
+  mainHeight: 700,
   sideWidth: 350,
   sideHeight: 250,
   colors: {
@@ -193,17 +193,70 @@ function createTooltip() {
         .style("box-shadow", "0 4px 6px rgba(0,0,0,0.1)");
 }
 
+// >-----------------< Legend Creation >-------------------<
+function createLegendForMainGraph(containerId, state) {
+  const svg = d3.select(containerId).select("svg");
+  const width = parseInt(svg.attr("width"));
+  const height = parseInt(svg.attr("height"));
+  const margin = { top: 60, right: 150, bottom: 70, left: 60 };
+
+  svg.selectAll(".legend").remove();
+
+  const controlContainer = svg.append("g")
+    .attr("class", "dashboard-controls")
+    .attr("transform", `translate(${width - margin.right}, 20)`);
+
+  const legend = controlContainer.append("g")
+    .attr("class", "legend")
+    .attr("transform", "translate(0, 60)");
+
+  const legendData = [
+    { color: graphConfig.colors.Male, label: 'Male' },
+    { color: graphConfig.colors.Female, label: 'Female' },
+    { color: graphConfig.colors.Other, label: 'Other' }
+  ];
+
+  const legendItems = legend.selectAll(".legend-item")
+    .data(legendData)
+    .enter()
+    .append("g")
+    .attr("class", "legend-item")
+    .attr("transform", (d, i) => `translate(0, ${i * 25})`);
+
+  legendItems.append("rect")
+    .attr("width", 15)
+    .attr("height", 15)
+    .attr("fill", d => d.color)
+    .attr("rx", 3)
+    .attr("ry", 3);
+
+  legendItems.append("text")
+    .attr("x", 20)
+    .attr("y", 12)
+    .text(d => d.label)
+    .attr("font-size", "12px")
+    .attr("fill", "#333");
+}
+
+
 // >-----------------< Scatter Plot Interactions >-------------------<
 function setupScatterPlotInteractions(data, state) {
-  const mainGraph = d3.select("#main-graph");
-  const metricSelector = mainGraph
+  const metricSelector = d3.select("#main-graph")
     .append("select")
-    .attr("class", "metric-selector");
+    .attr("class", "metric-selector")
+    .style("position", "absolute")
+    .style("top", "50px")
+    .style("left", "10px")
+    .style("padding", "5px")
+    .style("border", "1px solid #ccc")
+    .style("border-radius", "4px")
+    .style("background-color", "white")
+    .style("width", "150px");
 
   metricSelector.selectAll("option")
     .data(graphConfig.mentalHealthMetrics)
     .enter()
-    .append("option")
+    .append("xhtml:option")
     .attr("value", d => d.key)
     .text(d => d.label);
 
@@ -341,60 +394,29 @@ function createScatterPlot(containerId, width, height, data, state) {
     });
 }
 
-// Legend >----<
-function createLegendForMainGraph(containerId, state) {
-  const svg = d3.select(containerId).select("svg");
-  const width = parseInt(svg.attr("width"));
-  const height = parseInt(svg.attr("height"));
-
-  const legend = svg.append("g")
-    .attr("class", "legend")
-    .attr("transform", `translate(${width - 100}, 20)`);
-
-  const legendData = [
-    { color: graphConfig.colors.Male, label: 'Male' },
-    { color: graphConfig.colors.Female, label: 'Female' },
-    { color: graphConfig.colors.Other, label: 'Other' }
-  ];
-
-  const legendItems = legend.selectAll(".legend-item")
-    .data(legendData)
-    .enter()
-    .append("g")
-    .attr("class", "legend-item")
-    .attr("transform", (d, i) => `translate(0, ${i * 20})`);
-
-  legendItems.append("rect")
-    .attr("width", 15)
-    .attr("height", 15)
-    .attr("fill", d => d.color);
-
-  legendItems.append("text")
-    .attr("x", 20)
-    .attr("y", 12)
-    .text(d => d.label)
-    .attr("font-size", "12px")
-    .attr("fill", "#333");
-
-  const currentMetric = graphConfig.mentalHealthMetrics.find(m => m.key === state.selectedMentalHealthMetric);
-  svg.append("text")
-    .attr("x", width - 100)
-    .attr("y", height - 20)
-    .text(`Metric: ${currentMetric.label}`)
-    .attr("font-size", "12px")
-    .attr("fill", "#666");
-}
-
 // Donut Chart >----<
 function createDonutChart(containerId, width, height, platformUsageByGender, timeUsageByGender, state) {
   const svg = d3.select(containerId).select("svg");
   if (svg.size() > 0) svg.remove();
 
-  const donutContainer = d3.select(containerId);
-  
+  const donutContainer = d3.select(containerId)
+    .append("div")
+    .style("display", "flex")
+    .style("justify-content", "center")
+    .style("flex-direction", "column")
+    .style("margin-bottom", "20px")
+    .style("align-items", "center");
+
   const visualizationSelector = donutContainer
     .append("select")
-    .attr("class", "metric-selector");
+    .attr("class", "metric-selector")
+    .style("padding", "5px")
+    .style("border", "1px solid #ccc")	
+    .style("border-radius", "4px")
+    .style("background-color", "white")
+    .style("width", "200px")
+    .style("margin-right", "170px")
+    .style("margin-top", "-7px");
 
   visualizationSelector.selectAll("option")
     .data(graphConfig.socialMediaVisualizationOptions)
@@ -412,7 +434,7 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
       ? platformUsageByGender 
       : timeUsageByGender;
 
-    const newSvg = d3.select(containerId)
+    const newSvg = donutContainer
       .append("svg")
       .attr("width", width)
       .attr("height", height)
@@ -528,6 +550,9 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
 // Bar Graph >----<
 function createBarGraph(containerId, width, height, data) {
   const svg = d3.select(containerId)
+    .style("display", "flex")
+    .style("justify-content", "center")
+    .style("align-items", "center")
     .append("svg")
     .attr("width", width)
     .attr("height", height);
