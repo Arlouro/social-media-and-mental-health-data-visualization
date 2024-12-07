@@ -50,6 +50,33 @@ body {
     background: linear-gradient(to right, var(--accent-blue), var(--accent-green));
 }
 
+.dashboard-description {
+    max-width: 1000px;
+    margin: 0 auto 30px;
+    text-align: center;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.dashboard-description p {
+    margin-bottom: 15px;
+}
+
+.metric-selector {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 10;
+}
+
+.graph-card {
+    position: relative;
+}
+
+.scatter-plot {
+    min-height: 600px;
+}
+
 .chart-container {
     display: grid;
     grid-template-columns: 1fr 400px;
@@ -128,4 +155,12 @@ footer {
     text-align: center;
     font-size: 0.9rem;
     color: var(--text-primary);
+}
+
+select {
+    position: absolute;
+    padding: 5px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-bottom: 20px;
 }

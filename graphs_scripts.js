@@ -13,7 +13,7 @@ const graphConfig = {
     { key: 'feelDepressed', label: 'Depression Scale' },
     { key: 'compareScale', label: 'Social Comparison Scale' },
     { key: 'botherScale', label: 'Worry Scale' },
-    { key: 'feelAnxious', label: 'Anxiety Scale' },
+    { key: 'interestFluctuation', label: 'Interest Fluctuation Scale' },
     { key: 'sleep', label: 'Sleep Issues Scale' },
     { key: 'concentrationScale', label: 'Concentration Scale' },
     { key: 'socialValidation', label: 'Social Validation Scale' },
@@ -44,7 +44,7 @@ function initializeGraphs() {
       compareScale: parseScale(d["15. On a scale of 1-5, how often do you compare yourself to other successful people through the use of social media?"]),
       socialValidation: parseScale(d["17. How often do you look to seek validation from features of social media?"]),
       feelDepressed: parseScale(d["18. How often do you feel depressed or down?"]),
-      feelAnxious: parseScale(d["19. How often do you feel anxious or nervous?"]),
+      interestFluctuation: parseScale(d["19. On a scale of 1 to 5, how frequently does your interest in daily activities fluctuate?"]),
       sleep: parseScale(d["20. On a scale of 1 to 5, how often do you face issues regarding sleep?"]),
     }));
 
@@ -134,12 +134,10 @@ function countPlatformsByGender(data) {
 
 // >-----------------< Scatter Plot >-------------------<
 function setupGraphInteractions(data, state) {
-  const metricSelector = d3.select("#main-graph")
+  const mainGraph = d3.select("#main-graph");
+  const metricSelector = mainGraph
     .append("select")
-    .attr("class", "metric-selector")
-    .style("position", "absolute")
-    .style("top", "10px")
-    .style("right", "10px");
+    .attr("class", "metric-selector");
 
   metricSelector.selectAll("option")
     .data(graphConfig.mentalHealthMetrics)
@@ -150,7 +148,7 @@ function setupGraphInteractions(data, state) {
 
   metricSelector.on("change", function() {
     state.selectedMentalHealthMetric = this.value;
-    d3.select("#main-graph").selectAll("svg").remove();
+    mainGraph.selectAll("svg").remove();
     createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, data, state);
     createLegendForMainGraph("#main-graph", state);
   });

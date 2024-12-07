@@ -2,18 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Technology and Mental Health Data Visualization</title>
-    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <title>Mental Health vs. Social Media Use</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
 </head>
 <body>
     <div class="dashboard-container">
-        <h1 class="title">Mental Health vs. Social Media Use</h1>
+        <h1 id="mental-health-vs.-social-media-use" class="title">Mental Health vs. Social Media Use</h1>
         
+        <div class="dashboard-description">
+            <p>This interactive dashboard explores the complex relationship between social media usage and mental health across different age groups and genders. By visualizing key mental health metrics, we aim to provide insights into how digital interactions might impact psychological well-being.</p>
+            <p>Navigate through different mental health scales using the dropdown, and hover over data points to explore individual experiences.</p>
+        </div>
+
         <div class="chart-container">
             <div class="graph-card scatter-plot">
-                <div class="graph-header">Depression per Age</div>
+                <div class="graph-header">Statistics per Age</div>
                 <div id="main-graph"></div>
             </div>
             
@@ -22,19 +26,19 @@
                     <div class="graph-header">Entries by Gender</div>
                     <div id="side-graph-1"></div>
                 </div>
+                
                 <div class="graph-card donut-chart">
                     <div class="graph-header">Regularly Used Social Media</div>
                     <div id="side-graph-2"></div>
                 </div>
             </div>
         </div>
+
+        <footer>
+            <p>Dataset Source: <a href="https://www.kaggle.com/datasets/souvikahmed071/social-media-and-mental-health/data">Kaggle</a></p>
+            <p>Authors: André Louro & Petra Freitas</p>
+        </footer>
     </div>
-
-    <footer>
-        <p>Dataset Source: <a href="https://www.kaggle.com/datasets/souvikahmed071/social-media-and-mental-health/data">Kaggle</a></p>
-        <p>Authors: André Louro & Petra Freitas</p>
-    </footer>
-
     <script src="graphs_scripts.js"></script>
 </body>
 </html>
