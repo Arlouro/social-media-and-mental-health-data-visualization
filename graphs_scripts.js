@@ -68,7 +68,7 @@ function initializeGraphs() {
     createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, cleanedData, state);
     createLegendForMainGraph("#main-graph", state);
     createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight, cleanedData, state);
-    createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight, platformUsageByGender, timeUsageByGender, state);
+    createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight, platformUsageByGender, timeUsageByGender, state, cleanedData);
     
     setupScatterPlotInteractions(cleanedData, state);
     setupDonutChartInteractions(cleanedData, platformUsageByGender, timeUsageByGender, state);
@@ -479,7 +479,7 @@ function createScatterPlot(containerId, width, height, data, state) {
 }
 
 // Donut Chart >----<
-function createDonutChart(containerId, width, height, platformUsageByGender, timeUsageByGender, state) {
+function createDonutChart(containerId, width, height, platformUsageByGender, timeUsageByGender, state, data) {
   const donutContainer = d3.select(containerId)
     .append("div")
     .style("display", "flex")
@@ -530,7 +530,7 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
 
     const tooltip = createTooltip();
 
-    const data = Object.entries(currentData).flatMap(([category, counts]) => 
+    const preparedData = Object.entries(currentData).flatMap(([category, counts]) => 
       genders.map((gender, genderIndex) => ({
         category,
         gender,
@@ -547,7 +547,7 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
 
     const anglePerSection = Math.PI / 2;
     const angleScale = d3.scaleLinear()
-      .domain([0, d3.max(data, d => d.value)])
+      .domain([0, d3.max(preparedData, d => d.value)])
       .range([0, anglePerSection]);
 
     Object.keys(currentData).forEach((category) => {
@@ -574,35 +574,39 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
       .endAngle(d => d.genderIndex * anglePerSection + angleScale(d.value));
 
     newSvg.selectAll("path.arc")
-      .data(data)
+      .data(preparedData)
       .enter()
       .append("path")
       .attr("class", "arc")
       .attr("d", arc)
       .attr("fill", d => d.color)
       .attr("stroke-width", 1)
-      .on("mouseover", (event, d) => {
+      .on("mouseover", function(event, d) {
         tooltip.style("visibility", "visible")
           .text(`${d.category} - ${d.gender}: ${d.value}`);
       })
-      .on("mousemove", event => {
+      .on("mousemove", function(event) {
         tooltip.style("top", `${event.pageY + 5}px`)
           .style("left", `${event.pageX + 5}px`);
       })
-      .on("mouseout", () => {
+      .on("mouseout", function() {
         tooltip.style("visibility", "hidden");
       })
-      .transition()
-      .duration(1000)
-      .attrTween("d", function (d) {
-        const interpolate = d3.interpolate(0, d.value);
-        return function (t) {
-          d.value = interpolate(t);
-          return arc(d);
-        };
+      .on("click", function(event, d) {
+        const visualizationType = state.selectedSocialMediaVisualization;
+        
+        if (visualizationType === 'platforms') {
+          state.selectedPlatform = state.selectedPlatform === d.category ? null : d.category;
+          state.selectedSocialMediaTime = null;
+        } else if (visualizationType === 'time') {
+          state.selectedSocialMediaTime = state.selectedSocialMediaTime === d.category ? null : d.category;
+          state.selectedPlatform = null;
+        }
+        
+        updateAllVisualizations(data, state);
       });
 
-      newSvg.selectAll(".arc")
+    newSvg.selectAll(".arc")
       .attr("opacity", function(d) {
         const isSelected = (visualizationType === 'platforms' && state.selectedPlatform === d.category) ||
                            (visualizationType === 'time' && state.selectedSocialMediaTime === d.category);
@@ -617,17 +621,15 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
       const y = Math.sin(angle) * (radiusScale(category) + radiusScale.bandwidth() / 2) + 4;
 
       newSvg.append("text")
-      .attr("class", "label")
-      .attr("x", x)
-      .attr("y", y)
-      .text(category)
-      .attr("text-anchor", "end")
-      .attr("font-size", "10px")
-      .attr("fill", "#333");
+        .attr("class", "label")
+        .attr("x", x)
+        .attr("y", y)
+        .text(category)
+        .attr("text-anchor", "end")
+        .attr("font-size", "10px")
+        .attr("fill", "#333");
     });
   }
-
-  renderDonutChart(state.selectedSocialMediaVisualization);
 
   visualizationSelector.on("change", function() {
     state.selectedPlatform = null;
@@ -638,6 +640,8 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
     
     updateAllVisualizations(data, state);
   });
+
+  renderDonutChart(state.selectedSocialMediaVisualization);
 }
 
 // Bar Graph >----<
