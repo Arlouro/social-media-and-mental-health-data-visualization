@@ -298,9 +298,9 @@ function setupBarGraphInteractions(data, platformUsageByGender, timeUsageByGende
 
   svg.selectAll(".bar")
     .on("click", function(event, d) {
-      const selectedOccupation = d.data.occupation;
+      const selectedDepressionLevel = d.depression;
       
-      state.selectedOccupation = state.selectedOccupation === selectedOccupation ? null : selectedOccupation;
+      state.selectedMentalHealthMetric = state.selectedMentalHealthMetric === selectedDepressionLevel ? null : selectedDepressionLevel;
       
       updateAllVisualizations(data, state);
     });
@@ -653,41 +653,33 @@ function createBarGraph(containerId, width, height, data) {
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  const occupationData = d3.rollups(
-    data,
-    (v) => v.length,
-    (d) => d.occupation,
-    (d) => d.gender
-  );
+  const depressionGroups = d3.groups(data, d => d.feelDepressed);
 
-  const stackedData = occupationData.map(([occupation, genderCounts]) => {
-    return {
-      occupation,
-      ...Object.fromEntries(genderCounts),
-      total: genderCounts.reduce((sum, [, count]) => sum + count, 0),
-    };
+  const averageTimeByDepression = depressionGroups.map(([depression, group]) => {
+    const genderGroups = d3.groups(group, d => d.gender);
+    const averageTimeByGender = genderGroups.map(([gender, genderGroup]) => {
+      const totalMinutes = genderGroup.reduce((sum, d) => sum + parseSocialMediaTimeToMinutes(d.socialMediaTime), 0);
+      const averageMinutes = totalMinutes / genderGroup.length;
+      return { gender, averageMinutes };
+    });
+    return { depression, averageTimeByGender };
   });
 
-  stackedData.sort((a, b) => b.total - a.total);
-
   const x = d3.scaleBand()
-    .domain(stackedData.map((d) => d.occupation))
+    .domain(averageTimeByDepression.map(d => d.depression))
     .range([0, chartWidth])
     .padding(0.1);
 
   const y = d3.scaleLinear()
-    .domain([0, d3.max(stackedData, (d) => d.total)])
+    .domain([0, d3.max(averageTimeByDepression, d => d3.max(d.averageTimeByGender, g => g.averageMinutes))])
     .nice()
     .range([chartHeight, 0]);
 
   const genders = ["Male", "Female", "Other"];
 
-  const stack = d3.stack()
-    .keys(genders)
-    .order(d3.stackOrderNone)
-    .offset(d3.stackOffsetNone);
-
-  const series = stack(stackedData);
+  const colorScale = d3.scaleOrdinal()
+    .domain(genders)
+    .range([graphConfig.colors.Male, graphConfig.colors.Female, graphConfig.colors.Other]);
 
   // X-axis
   g.append("g")
@@ -707,43 +699,43 @@ function createBarGraph(containerId, width, height, data) {
     .style("fill", "#555");
 
   // Bars
-  g.selectAll(".series")
-    .data(series)
-    .enter()
-    .append("g")
-    .attr("class", "series")
-    .attr("fill", (d) => graphConfig.colors[d.key])
-    .selectAll("rect")
-    .data((d) => d)
-    .enter()
-    .append("rect")
-    .attr("x", (d, i) => x(stackedData[i].occupation))
-    .attr("y", (d) => y(d[1]))
-    .attr("height", (d) => y(d[0]) - y(d[1]))
-    .attr("width", x.bandwidth())
-    .attr("class", "bar")
-    .on("mouseover", function(event, d) {
-      tooltip.style("visibility", "visible")
-        .text(`${d.data.occupation} - ${d.key}: ${d[1] - d[0]}`);
-    })
-    .on("mousemove", function(event) {
-      tooltip.style("top", `${event.pageY + 5}px`)
-        .style("left", `${event.pageX + 5}px`);
-    })
-    .on("mouseout", function() {
-      tooltip.style("visibility", "hidden");
-    })
-    .on("mouseenter", function() {
-      d3.select(this)
-        .transition()
-        .attr("opacity", 0.7);
-    })
-    .on("mouseleave", function() {
-      d3.select(this)
-        .transition()
-        .duration(200)
-        .attr("opacity", 1);
-    });
+  averageTimeByDepression.forEach(d => {
+    const barGroup = g.append("g")
+      .attr("transform", `translate(${x(d.depression)},0)`);
+
+    barGroup.selectAll("rect")
+      .data(d.averageTimeByGender)
+      .enter()
+      .append("rect")
+      .attr("x", (d, i) => i * (x.bandwidth() / genders.length))
+      .attr("y", d => y(d.averageMinutes))
+      .attr("width", x.bandwidth() / genders.length)
+      .attr("height", d => chartHeight - y(d.averageMinutes))
+      .attr("fill", d => colorScale(d.gender))
+      .attr("class", "bar")
+      .on("mouseover", function(event, d) {
+        tooltip.style("visibility", "visible")
+          .text(`${d.gender}: ${d.averageMinutes.toFixed(2)} minutes`);
+      })
+      .on("mousemove", function(event) {
+        tooltip.style("top", `${event.pageY + 5}px`)
+          .style("left", `${event.pageX + 5}px`);
+      })
+      .on("mouseout", function() {
+        tooltip.style("visibility", "hidden");
+      })
+      .on("mouseenter", function() {
+        d3.select(this)
+          .transition()
+          .attr("opacity", 0.7);
+      })
+      .on("mouseleave", function() {
+        d3.select(this)
+          .transition()
+          .duration(200)
+          .attr("opacity", 1);
+      });
+  });
 
   const tooltip = createTooltip();
 
@@ -756,7 +748,17 @@ function createBarGraph(containerId, width, height, data) {
     .style("font-size", "12px")
     .style("font-weight", "bold")
     .style("fill", "#333")
-    .text("Number of Participants");
+    .text("Average Time Spent on Social Media (minutes)");
+}
+
+function parseSocialMediaTimeToMinutes(timeString) {
+  if (timeString.includes("Less than 1 hour")) return 30;
+  if (timeString.includes("Between 1 and 2 hours")) return 90;
+  if (timeString.includes("Between 2 and 3 hours")) return 150;
+  if (timeString.includes("Between 3 and 4 hours")) return 210;
+  if (timeString.includes("Between 4 and 5 hours")) return 270;
+  if (timeString.includes("More than 5 hours")) return 330;
+  return 0;
 }
 
 document.addEventListener('DOMContentLoaded', initializeGraphs);
