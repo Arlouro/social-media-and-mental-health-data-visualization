@@ -60,6 +60,7 @@ function initializeGraphs() {
       selectedMentalHealthMetric: 'feelDepressed',
       selectedSocialMediaVisualization: 'platforms',
       selectedPlatform: null,
+      selectedSocialMediaTime: null,
       selectedOccupation: null,
       selectedGender: null
     };
@@ -165,13 +166,16 @@ function updateAllVisualizations(data, state) {
     const platformMatch = state.selectedPlatform ? 
       d.socialMediaUsed.includes(state.selectedPlatform) : true;
     
+    const socialMediaTimeMatch = state.selectedSocialMediaTime ? 
+      d.socialMediaTime === state.selectedSocialMediaTime : true;
+    
     const occupationMatch = state.selectedOccupation ? 
       d.occupation === state.selectedOccupation : true;
     
     const genderMatch = state.selectedGender ? 
       d.gender === state.selectedGender : true;
     
-    return platformMatch && occupationMatch && genderMatch;
+    return platformMatch && socialMediaTimeMatch && occupationMatch && genderMatch;
   });
 
   d3.select("#main-graph").selectAll("svg").remove();
@@ -269,13 +273,22 @@ function setupScatterPlotInteractions(data, state) {
 
 // >-----------------< Donut Chart Interactions >-------------------<
 function setupDonutChartInteractions(data, platformUsageByGender, timeUsageByGender, state) {
-  const svg = d3.select("#side-graph-2 svg");
+  const svg = d3.select("#side-graph-2");
   
   svg.selectAll(".arc")
     .on("click", function(event, d) {
-      const selectedPlatform = d.category;
+      console.log("Clicked donut section:", d);
       
-      state.selectedPlatform = state.selectedPlatform === selectedPlatform ? null : selectedPlatform;
+      const visualizationType = state.selectedSocialMediaVisualization;
+      
+      state.selectedPlatform = null;
+      state.selectedSocialMediaTime = null;
+      
+      if (visualizationType === 'platforms') {
+        state.selectedPlatform = d.category;
+      } else if (visualizationType === 'time') {
+        state.selectedSocialMediaTime = d.category;
+      }
       
       updateAllVisualizations(data, state);
     });
