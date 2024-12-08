@@ -178,11 +178,12 @@ function updateAllVisualizations(data, state) {
     return platformMatch && socialMediaTimeMatch && occupationMatch && genderMatch;
   });
 
-  d3.select("#main-graph").selectAll("svg").remove();
+  d3.select("#main-graph").selectAll("*").remove();
   createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
-  createLegendForMainGraph("#main-graph", state);
+  createLegendForMainGraph("#main-graph", state);  
   setupScatterPlotInteractions(data, state);
 }
+
 
 // >-----------------< Tooltip Creation >-------------------<
 function createTooltip() {
@@ -277,17 +278,14 @@ function setupDonutChartInteractions(data, platformUsageByGender, timeUsageByGen
   
   svg.selectAll(".arc")
     .on("click", function(event, d) {
-      console.log("Clicked donut section:", d);
-      
       const visualizationType = state.selectedSocialMediaVisualization;
       
-      state.selectedPlatform = null;
-      state.selectedSocialMediaTime = null;
-      
       if (visualizationType === 'platforms') {
-        state.selectedPlatform = d.category;
+        state.selectedPlatform = state.selectedPlatform === d.category ? null : d.category;
+        state.selectedSocialMediaTime = null;
       } else if (visualizationType === 'time') {
-        state.selectedSocialMediaTime = d.category;
+        state.selectedSocialMediaTime = state.selectedSocialMediaTime === d.category ? null : d.category;
+        state.selectedPlatform = null;
       }
       
       updateAllVisualizations(data, state);
@@ -333,8 +331,8 @@ function createScatterPlot(containerId, width, height, data, state) {
     .domain([0, d3.max(data, d => d[metricKey])])
     .range([chartHeight, 0]);
 
-  // Axis
-  g.append("g")
+    // Axis
+    g.append("g")
     .attr("transform", `translate(0,${chartHeight})`)
     .call(d3.axisBottom(x).tickSizeOuter(0))
     .selectAll("text")
@@ -389,55 +387,60 @@ function createScatterPlot(containerId, width, height, data, state) {
         .attr("cx", baseX)
         .attr("cy", baseY)
         .attr("r", 5)
-        .attr("fill", d => graphConfig.colors[d.gender]) //FIXME: the color is appearing as black
+        .attr("fill", d => graphConfig.colors[points[0].gender])
         .attr("opacity", 0.7);
     } else {
       const radius = 5;
       const spreadRadius = radius * 2.5 * points.length;
 
       points.forEach((point, index) => {
-        const angle = (2 * Math.PI * index) / points.length;
-        const dispersedX = baseX + spreadRadius * Math.cos(angle);
-        const dispersedY = baseY + spreadRadius * Math.sin(angle);
-
         d3.select(this)
           .append("circle")
           .attr("class", "dot overlay-dot")
-          .attr("cx", baseX)
-          .attr("cy", baseY)
+          .attr("cx", baseX)  // Start at base coordinates
+          .attr("cy", baseY)  // Start at base coordinates
           .attr("r", radius)
           .attr("fill", graphConfig.colors[point.gender])
           .attr("opacity", 0.7)
           .attr("data-base-x", baseX)
           .attr("data-base-y", baseY)
-          .attr("data-dispersed-x", dispersedX)
-          .attr("data-dispersed-y", dispersedY);
+          .attr("data-index", index)
+          .attr("data-spread-radius", spreadRadius);
       });
     }
   });
 
   const tooltip = createTooltip();
 
-  let isDispersed = false;
-
   svg.selectAll(".point-group")
     .style("cursor", "pointer")
     .on("click", function(event, group) {
       const points = d3.select(this).selectAll(".overlay-dot");
       
+      // Check if points are already dispersed
+      const isDispersed = points.nodes().some(point => 
+        parseFloat(point.getAttribute('cx')) !== parseFloat(point.getAttribute('data-base-x'))
+      );
+
       if (!isDispersed && points.size() > 1) {
         // Disperse points
-        points.transition()
-          .duration(500)
-          .attr("cx", function() { 
-            return parseFloat(this.getAttribute('data-dispersed-x')); 
-          })
-          .attr("cy", function() { 
-            return parseFloat(this.getAttribute('data-dispersed-y')); 
-          });
-        isDispersed = true;
+        points.each(function() {
+          const index = parseFloat(this.getAttribute('data-index'));
+          const baseX = parseFloat(this.getAttribute('data-base-x'));
+          const baseY = parseFloat(this.getAttribute('data-base-y'));
+          const spreadRadius = parseFloat(this.getAttribute('data-spread-radius'));
+          const angle = (2 * Math.PI * index) / points.size();
+          
+          const dispersedX = baseX + spreadRadius * Math.cos(angle);
+          const dispersedY = baseY + spreadRadius * Math.sin(angle);
+
+          d3.select(this).transition()
+            .duration(500)
+            .attr("cx", dispersedX)
+            .attr("cy", dispersedY);
+        });
       } else {
-        // Revert points
+        // Revert points to base position
         points.transition()
           .duration(500)
           .attr("cx", function() { 
@@ -446,7 +449,6 @@ function createScatterPlot(containerId, width, height, data, state) {
           .attr("cy", function() { 
             return parseFloat(this.getAttribute('data-base-y')); 
           });
-        isDispersed = false;
       }
     })
     .on("mouseenter", function(event, group) {
@@ -462,7 +464,7 @@ function createScatterPlot(containerId, width, height, data, state) {
         .attr("r", 5);
     });
 
-    svg.selectAll(".dot")
+  svg.selectAll(".dot")
     .on("mousemove", function(event, d) {
       const pointGroup = d3.select(this.parentNode);
       const firstPoint = pointGroup.datum()[1][0];
@@ -478,9 +480,6 @@ function createScatterPlot(containerId, width, height, data, state) {
 
 // Donut Chart >----<
 function createDonutChart(containerId, width, height, platformUsageByGender, timeUsageByGender, state) {
-  const svg = d3.select(containerId).select("svg");
-  if (svg.size() > 0) svg.remove();
-
   const donutContainer = d3.select(containerId)
     .append("div")
     .style("display", "flex")
@@ -603,6 +602,13 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
         };
       });
 
+      newSvg.selectAll(".arc")
+      .attr("opacity", function(d) {
+        const isSelected = (visualizationType === 'platforms' && state.selectedPlatform === d.category) ||
+                           (visualizationType === 'time' && state.selectedSocialMediaTime === d.category);
+        return isSelected ? 0.7 : 1;
+      });
+
     // Labels 
     Object.keys(currentData).forEach((category) => {
       const angle = -Math.PI / 2;
@@ -624,8 +630,13 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
   renderDonutChart(state.selectedSocialMediaVisualization);
 
   visualizationSelector.on("change", function() {
+    state.selectedPlatform = null;
+    state.selectedSocialMediaTime = null;
+    
     state.selectedSocialMediaVisualization = this.value;
     renderDonutChart(this.value);
+    
+    updateAllVisualizations(data, state);
   });
 }
 
