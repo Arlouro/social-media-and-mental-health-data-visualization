@@ -331,8 +331,8 @@ function createScatterPlot(containerId, width, height, data, state) {
     .domain([0, d3.max(data, d => d[metricKey])])
     .range([chartHeight, 0]);
 
-    // Axis
-    g.append("g")
+  // Axis
+  g.append("g")
     .attr("transform", `translate(0,${chartHeight})`)
     .call(d3.axisBottom(x).tickSizeOuter(0))
     .selectAll("text")
@@ -391,14 +391,14 @@ function createScatterPlot(containerId, width, height, data, state) {
         .attr("opacity", 0.7);
     } else {
       const radius = 5;
-      const spreadRadius = radius * 2.5 * points.length;
+      const spreadRadius = radius * points.length;
 
       points.forEach((point, index) => {
         d3.select(this)
           .append("circle")
           .attr("class", "dot overlay-dot")
-          .attr("cx", baseX)  // Start at base coordinates
-          .attr("cy", baseY)  // Start at base coordinates
+          .attr("cx", baseX)
+          .attr("cy", baseY)  
           .attr("r", radius)
           .attr("fill", graphConfig.colors[point.gender])
           .attr("opacity", 0.7)
@@ -413,55 +413,47 @@ function createScatterPlot(containerId, width, height, data, state) {
   const tooltip = createTooltip();
 
   svg.selectAll(".point-group")
+    .each(function() {
+      d3.select(this).attr("data-dispersed", "false");
+    })
     .style("cursor", "pointer")
     .on("click", function(event, group) {
-      const points = d3.select(this).selectAll(".overlay-dot");
-      
-      // Check if points are already dispersed
-      const isDispersed = points.nodes().some(point => 
-        parseFloat(point.getAttribute('cx')) !== parseFloat(point.getAttribute('data-base-x'))
-      );
+      const pointGroup = d3.select(this);
+      const points = pointGroup.selectAll(".overlay-dot");
+      const isCurrentlyDispersed = pointGroup.attr("data-dispersed") === "true";
 
-      if (!isDispersed && points.size() > 1) {
-        // Disperse points
-        points.each(function() {
-          const index = parseFloat(this.getAttribute('data-index'));
-          const baseX = parseFloat(this.getAttribute('data-base-x'));
-          const baseY = parseFloat(this.getAttribute('data-base-y'));
-          const spreadRadius = parseFloat(this.getAttribute('data-spread-radius'));
-          const angle = (2 * Math.PI * index) / points.size();
-          
-          const dispersedX = baseX + spreadRadius * Math.cos(angle);
-          const dispersedY = baseY + spreadRadius * Math.sin(angle);
+      if (points.size() > 1) {
+        if (!isCurrentlyDispersed) {
+          points.each(function() {
+            const index = parseFloat(this.getAttribute('data-index'));
+            const baseX = parseFloat(this.getAttribute('data-base-x'));
+            const baseY = parseFloat(this.getAttribute('data-base-y'));
+            const spreadRadius = parseFloat(this.getAttribute('data-spread-radius'));
+            const angle = (2 * Math.PI * index) / points.size();
+            
+            const dispersedX = baseX + spreadRadius * Math.sin(angle);
+            const dispersedY = baseY + spreadRadius * Math.cos(angle);
 
-          d3.select(this).transition()
-            .duration(500)
-            .attr("cx", dispersedX)
-            .attr("cy", dispersedY);
-        });
-      } else {
-        // Revert points to base position
-        points.transition()
-          .duration(500)
-          .attr("cx", function() { 
-            return parseFloat(this.getAttribute('data-base-x')); 
-          })
-          .attr("cy", function() { 
-            return parseFloat(this.getAttribute('data-base-y')); 
+            d3.select(this).transition()
+              .duration(500)
+              .attr("cx", dispersedX)
+              .attr("cy", dispersedY);
           });
+          
+          pointGroup.attr("data-dispersed", "true");
+        } else {
+          points.transition()
+            .duration(500)
+            .attr("cx", function() { 
+              return parseFloat(this.getAttribute('data-base-x')); 
+            })
+            .attr("cy", function() { 
+              return parseFloat(this.getAttribute('data-base-y')); 
+            });
+          
+          pointGroup.attr("data-dispersed", "false");
+        }
       }
-    })
-    .on("mouseenter", function(event, group) {
-      const points = d3.select(this).selectAll(".dot");
-      points.transition()
-        .duration(200)
-        .attr("r", 8);
-    })
-    .on("mouseleave", function(event, group) {
-      const points = d3.select(this).selectAll(".dot");
-      points.transition()
-        .duration(200)
-        .attr("r", 5);
     });
 
   svg.selectAll(".dot")
