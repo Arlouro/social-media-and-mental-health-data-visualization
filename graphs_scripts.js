@@ -326,8 +326,8 @@ function createScatterPlot(containerId, width, height, data, state) {
   const metricKey = state.selectedMentalHealthMetric;
 
   const x = d3.scaleLinear()
-  .domain([10, 70])
-  .range([0, chartWidth]);
+    .domain([10, 70])
+    .range([0, chartWidth]);
 
   const y = d3.scaleLinear()
     .domain([0, d3.max(data, d => d[metricKey])])
@@ -369,39 +369,109 @@ function createScatterPlot(containerId, width, height, data, state) {
     .style("fill", "#333")
     .text(graphConfig.mentalHealthMetrics.find(m => m.key === metricKey).label);
 
-  // Scatter
-  g.selectAll(".dot")
-    .data(data)
-    .enter().append("circle")
-    .attr("class", "dot")
-    .attr("cx", d => x(d.age))
-    .attr("cy", d => y(d[metricKey]))
-    .attr("r", 5)
-    .attr("fill", d => graphConfig.colors[d.gender])
-    .attr("opacity", 0.7);
+  const pointGroups = d3.groups(data, d => `${x(d.age)}-${y(d[metricKey])}`);
+
+  const scatter = g.selectAll(".dot")
+    .data(pointGroups)
+    .enter()
+    .append("g")
+    .attr("class", "point-group");
+
+  scatter.each(function(group) {
+    const points = group[1];
+    const baseX = x(points[0].age);
+    const baseY = y(points[0][metricKey]);
+
+    if (points.length === 1) {
+      d3.select(this)
+        .append("circle")
+        .attr("class", "dot")
+        .attr("cx", baseX)
+        .attr("cy", baseY)
+        .attr("r", 5)
+        .attr("fill", d => graphConfig.colors[d.gender]) //FIXME: the color is appearing as black
+        .attr("opacity", 0.7);
+    } else {
+      const radius = 5;
+      const spreadRadius = radius * 2.5 * points.length;
+
+      points.forEach((point, index) => {
+        const angle = (2 * Math.PI * index) / points.length;
+        const dispersedX = baseX + spreadRadius * Math.cos(angle);
+        const dispersedY = baseY + spreadRadius * Math.sin(angle);
+
+        d3.select(this)
+          .append("circle")
+          .attr("class", "dot overlay-dot")
+          .attr("cx", baseX)
+          .attr("cy", baseY)
+          .attr("r", radius)
+          .attr("fill", graphConfig.colors[point.gender])
+          .attr("opacity", 0.7)
+          .attr("data-base-x", baseX)
+          .attr("data-base-y", baseY)
+          .attr("data-dispersed-x", dispersedX)
+          .attr("data-dispersed-y", dispersedY);
+      });
+    }
+  });
 
   const tooltip = createTooltip();
 
-  svg.selectAll(".dot")
-    .on("mouseenter", function(event, d) {
-      d3.select(this)
-        .transition()
-        .duration(200)
-        .attr("r", 8)
-        .attr("fill", "#333");
+  let isDispersed = false;
+
+  svg.selectAll(".point-group")
+    .style("cursor", "pointer")
+    .on("click", function(event, group) {
+      const points = d3.select(this).selectAll(".overlay-dot");
+      
+      if (!isDispersed && points.size() > 1) {
+        // Disperse points
+        points.transition()
+          .duration(500)
+          .attr("cx", function() { 
+            return parseFloat(this.getAttribute('data-dispersed-x')); 
+          })
+          .attr("cy", function() { 
+            return parseFloat(this.getAttribute('data-dispersed-y')); 
+          });
+        isDispersed = true;
+      } else {
+        // Revert points
+        points.transition()
+          .duration(500)
+          .attr("cx", function() { 
+            return parseFloat(this.getAttribute('data-base-x')); 
+          })
+          .attr("cy", function() { 
+            return parseFloat(this.getAttribute('data-base-y')); 
+          });
+        isDispersed = false;
+      }
     })
+    .on("mouseenter", function(event, group) {
+      const points = d3.select(this).selectAll(".dot");
+      points.transition()
+        .duration(200)
+        .attr("r", 8);
+    })
+    .on("mouseleave", function(event, group) {
+      const points = d3.select(this).selectAll(".dot");
+      points.transition()
+        .duration(200)
+        .attr("r", 5);
+    });
+
+    svg.selectAll(".dot")
     .on("mousemove", function(event, d) {
+      const pointGroup = d3.select(this.parentNode);
+      const firstPoint = pointGroup.datum()[1][0];
       tooltip.style("visibility", "visible")
-        .text(`${d.age} years old - ${d[metricKey]}`);
+        .text(`${firstPoint.age} years old - ${firstPoint[metricKey]}`);
       tooltip.style("top", `${event.pageY + 5}px`)
         .style("left", `${event.pageX + 5}px`);
     })
-    .on("mouseleave", function() {
-      d3.select(this)
-      .transition()
-      .duration(200)
-      .attr("r", 5)
-      .attr("fill", d => graphConfig.colors[d.gender]);
+    .on("mouseout", function() {
       tooltip.style("visibility", "hidden");
     });
 }
