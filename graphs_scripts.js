@@ -243,7 +243,8 @@ function setupScatterPlotInteractions(data, state) {
     .attr("class", "metric-selector")
     .style("position", "absolute")
     .style("top", "50px")
-    .style("left", "14px");
+    .style("left", "14px")
+    .style("width", "200px");
 
   metricSelector.selectAll("option")
     .data(graphConfig.mentalHealthMetrics)
