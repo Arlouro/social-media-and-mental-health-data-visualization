@@ -478,7 +478,7 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
     .style("justify-content", "center")
     .style("flex-direction", "column")
     .style("margin-bottom", "20px")
-    .style("align-items", "left");
+    .style("align-items", "center");
 
   const visualizationSelector = donutContainer
     .append("select")
@@ -646,9 +646,9 @@ function createBarGraph(containerId, width, height, data) {
     .attr("width", width)
     .attr("height", height);
 
-  const margin = { top: 20, right: 20, bottom: 20, left: 60 };
-  const chartWidth = width - margin.left - margin.right;
-  const chartHeight = height - margin.top - margin.bottom;
+  const margin = { top: 10, right: 20, bottom: 60, left: 60 };
+  const chartWidth = width - margin.left - margin.right + 70;
+  const chartHeight = height - margin.top - margin.bottom + 60;
 
   const g = svg.append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
@@ -666,7 +666,7 @@ function createBarGraph(containerId, width, height, data) {
   });
 
   const x = d3.scaleBand()
-    .domain(averageTimeByDepression.map(d => d.depression))
+    .domain([1, 2, 3, 4, 5])
     .range([0, chartWidth])
     .padding(0.1);
 
@@ -687,9 +687,7 @@ function createBarGraph(containerId, width, height, data) {
     .call(d3.axisBottom(x))
     .selectAll("text")
     .style("text-anchor", "end")
-    .attr("dx", "-.8em")
-    .attr("dy", ".15em")
-    .attr("transform", "rotate(-45)");
+    .attr("dx", "0.3em")
 
   // Y-axis
   g.append("g")
@@ -703,16 +701,18 @@ function createBarGraph(containerId, width, height, data) {
     const barGroup = g.append("g")
       .attr("transform", `translate(${x(d.depression)},0)`);
 
+    const sortedAverageTimeByGender = d.averageTimeByGender.sort((a, b) => b.averageMinutes - a.averageMinutes);
+
     barGroup.selectAll("rect")
-      .data(d.averageTimeByGender)
+      .data(sortedAverageTimeByGender)
       .enter()
       .append("rect")
-      .attr("x", (d, i) => i * (x.bandwidth() / genders.length))
+      .attr("x", 0)
       .attr("y", d => y(d.averageMinutes))
-      .attr("width", x.bandwidth() / genders.length)
+      .attr("width", x.bandwidth())
       .attr("height", d => chartHeight - y(d.averageMinutes))
       .attr("fill", d => colorScale(d.gender))
-      .attr("class", "bar")
+      .attr("opacity", 1)
       .on("mouseover", function(event, d) {
         tooltip.style("visibility", "visible")
           .text(`${d.gender}: ${d.averageMinutes.toFixed(2)} minutes`);
@@ -741,7 +741,7 @@ function createBarGraph(containerId, width, height, data) {
 
   // Y-axis label
   svg.append("text")
-    .attr("transform", "rotate(-90)")
+    .attr("transform", `translate(0, 5) rotate(-90)`)
     .attr("y", margin.left / 3)
     .attr("x", 0 - height / 2)
     .style("text-anchor", "middle")
@@ -749,6 +749,15 @@ function createBarGraph(containerId, width, height, data) {
     .style("font-weight", "bold")
     .style("fill", "#333")
     .text("Average Time Spent on Social Media (minutes)");
+
+  // X-axis label
+  svg.append("text")
+    .attr("transform", `translate(${width / 2 + 60}, ${height - margin.bottom / 3 + 60})`)
+    .style("text-anchor", "middle")
+    .style("font-size", "12px")
+    .style("font-weight", "bold")
+    .style("fill", "#333")
+    .text("Depression Level");
 }
 
 function parseSocialMediaTimeToMinutes(timeString) {
