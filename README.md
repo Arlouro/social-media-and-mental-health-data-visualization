@@ -1,41 +1,91 @@
-# Technology and Mental Health - Data Visualization
+# Mental Health vs. Social Media Use
 
-## Technologies Used
+## Overview
 
-- D3.js
-- JavaScript
-- HTML
-- CSS
+This project is an **interactive dashboard** designed to analyze the relationship between **social media usage** and **mental health**. By visualizing data across various dimensions such as age, gender, and mental health metrics, the project provides users with insights into how digital interactions may influence psychological well-being.
 
-## Description
+The dashboard is built using **D3.js**, **JavaScript**, **CSS**, and **HTML**, and features multiple interactive visualizations that enable users to filter, explore, and analyze data dynamically.
 
-Data visualization of the relationship between social media usage and mental health. Using D3.js, this project visualizes the data in a way that is easy to understand and interpret.
+---
 
-## Data Sources
+### Features
 
-Kaggle: [Social Media Usage and Mental Health](https://www.kaggle.com/ankurnitk/social-media-usage-and-mental-health)
+#### 1. Interactive Scatter Plot
 
-## Graphs
+- **Dynamic Metric Selection**: Users can toggle between various mental health metrics (e.g., depression, concentration, sleep issues).
+- **Cluster Interactions**: Points representing overlapping data can be dispersed for better analysis. *(still needs some work)*
+- **Tooltips**: Hovering over points displays detailed information, such as age and the selected metric value.
 
-### Main Graph - Scatter Plot
+#### 2. Donut Chart (Social Media Dimensions)
 
-- X-axis: Social Media Usage
-- Y-axis: Mental Health
+- **Category Switching**: Users can switch between visualizing popular social media platforms and time spent on social media.
+- **Interactive Segments**: Clicking on segments filters data across the dashboard, dynamically updating the scatter plot and bar chart. *(missing visual feedback)*
+- **Tooltips**: Provides additional context (e.g., percentage of total) when hovering over segments.
 
-### Side Graphs - Bar Graph | Multi-level Donut Chart
+#### 3. Bar Chart (Depression vs. Social Media Time)
 
-The side graphs are used to show the distribution of the data in a different way, as well as to be used as filters for the main graph.
+- **Time Segmentation by Gender**: Displays average time spent on social media for different depression levels, segmented by gender.
+- **Tooltips**: Provides additional context (e.g., average time in minutes) when hovering over bars.
 
-#### Bar Graph
+#### 4. Real-Time Filtering and Synchronization
 
-The bar graph is used to show the distribution of the data based on the ????????.
+- **Global State Management**: Filters applied in one chart (e.g., selecting a gender or a platform) update all visualizations simultaneously.
+- **Dynamic Updates**: All charts re-render in real-time when a filter or selection is changed.
 
-- X-axis: Social Media Usage
-- Y-axis: Count
+---
 
-#### Multi-level Donut Chart
+### Technologies Used
 
-The multi-level donut chart is used to show the distribution of the subjects based on the used social media.
+- **D3.js**: For creating interactive and dynamic data visualizations.
+- **JavaScript**: Handles the logic for filtering, state management, and interactions.
+- **CSS**: For styling the dashboard, ensuring a responsive and modern design.
+- **HTML**: Provides the structural foundation for the dashboard.
 
-- Sectors: Genders
-- Levels: Social Media Usage
+---
+
+### File Structure
+
+- `index.html`: The main HTML file that hosts the dashboard.
+- `styles.css`: Contains some of the styles for the dashboard, including layout and color schemes.
+- `graphs_scripts.js`: JavaScript file responsible for data processing, chart creation, and interaction logic.
+
+---
+
+### Installation and Usage
+
+#### Prerequisites
+
+- A modern web browser (e.g., Chrome, Firefox, Edge) that supports D3.js and JavaScript.
+
+#### Steps to Run
+
+1. Download the project files.
+2. Place the files in a local server or open `index.html` directly in your browser.
+3. The dashboard will load and display the visualizations. Ensure the data file (`dataset.csv`) is present in the same directory if needed for dynamic updates.
+
+---
+
+### Dataset
+
+The dataset used for this project comes from the [Kaggle Social Media and Mental Health Dataset](https://www.kaggle.com/datasets/souvikahmed071/social-media-and-mental-health/data). It contains responses to various survey questions about social media usage and its impact on mental health.
+
+---
+
+### Future Improvements
+
+- **Data Expansion**: Add more dimensions or datasets for deeper insights.
+- **Advanced Filtering**: Enable multi-dimensional filtering (e.g., filtering by both gender and occupation).
+- **Export Options**: Allow users to download filtered data or visualizations as images or reports.
+
+---
+
+### Authors
+
+- **André Louro** - Implementation and Documentation
+- **Petra Freitas** - Design and Conceptualization
+
+---
+
+### License
+
+This project is open-source and can be freely used, modified, and distributed for non-commercial purposes. For details, refer to the license file (if available).
