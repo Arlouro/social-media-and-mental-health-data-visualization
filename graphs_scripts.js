@@ -52,21 +52,22 @@ function initializeGraphs() {
       sleep: parseScale(d["20. On a scale of 1 to 5, how often do you face issues regarding sleep?"]),
     }));
 
-    const platformUsageByGender = countPlatformsByGender(cleanedData);
-    const timeUsageByGender = countSocialMediaTimeByGender(cleanedData);
-
     const state = {
       selectedMentalHealthMetric: 'feelDepressed',
       selectedSocialMediaVisualization: 'platforms',
       selectedPlatform: null,
       selectedSocialMediaTime: null,
       selectedOccupation: null,
-      selectedGender: null
+      selectedGender: null,
+      selectedLabels: []
     };
 
+    const platformUsageByGender = countPlatformsByGender(cleanedData);
+    const timeUsageByGender = countSocialMediaTimeByGender(cleanedData);
+
     createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, cleanedData, state);
-    createLegendForMainGraph("#main-graph", state);
-    createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight, cleanedData, state);
+    createLegendForMainGraph("#main-graph", state, cleanedData);
+    createBarGraph("#side-graph-1", graphConfig.sideWidth, graphConfig.sideHeight, cleanedData);
     createDonutChart("#side-graph-2", graphConfig.sideWidth, graphConfig.sideHeight, platformUsageByGender, timeUsageByGender, state, cleanedData);
     
     setupScatterPlotInteractions(cleanedData, state);
@@ -176,7 +177,7 @@ function updateAllVisualizations(data, state) {
 
   d3.select("#main-graph").selectAll("*").remove();
   createScatterPlot("#main-graph", graphConfig.mainWidth, graphConfig.mainHeight, filteredData, state);
-  createLegendForMainGraph("#main-graph", state);  
+  createLegendForMainGraph("#main-graph", state, data);
   setupScatterPlotInteractions(data, state);
 }
 
@@ -195,7 +196,7 @@ function createTooltip() {
 }
 
 // >-----------------< Legend Creation >-------------------<
-function createLegendForMainGraph(containerId, state) {
+function createLegendForMainGraph(containerId, state, data) {
   const svg = d3.select(containerId).select("svg");
   const width = parseInt(svg.attr("width"));
   const margin = { top: 60, right: 140, bottom: 70, left: 60 };
@@ -221,19 +222,48 @@ function createLegendForMainGraph(containerId, state) {
     .enter()
     .append("g")
     .attr("class", "legend-item")
-    .attr("transform", (d, i) => `translate(${i * 80}, 0)`);
+    .attr("transform", (d, i) => `translate(${i * 80}, 0)`)
+    .style("cursor", "pointer");
 
   legendItems.append("rect")
     .attr("width", 15)
     .attr("height", 15)
-    .attr("fill", d => d.color);
+    .attr("fill", d => d.color)
+    .attr("class", "legend-rect");
 
   legendItems.append("text")
     .attr("x", 20)
     .attr("y", 12)
     .text(d => d.label)
     .attr("font-size", "12px")
-    .attr("fill", "#333");
+    .attr("fill", "#333")
+    .attr("class", "legend-text");
+
+  legendItems.on("click", function(event, d) {
+    console.log("Legend click:", d.label, "Current state:", state.selectedGender);
+
+    if (state.selectedGender === d.label) {
+      state.selectedGender = null;
+    } else {
+      state.selectedGender = d.label;
+    }
+
+    legendItems.selectAll(".legend-rect, .legend-text")
+      .transition()
+      .duration(200)
+      .style("opacity", function() {
+        const currentLegendItem = d3.select(this.parentNode).datum();
+        return state.selectedGender === null || currentLegendItem.label === state.selectedGender ? 1 : 0.3;
+      });
+
+    updateAllVisualizations(data, state);
+  });
+
+  legendItems.selectAll(".legend-rect, .legend-text")
+    .style("opacity", function() {
+      const currentLegendItem = d3.select(this.parentNode).datum();
+      return state.selectedGender === null || currentLegendItem.label === state.selectedGender ? 1 : 0.3;
+    });
 }
 
 // >-----------------< Scatter Plot Interactions >-------------------<
