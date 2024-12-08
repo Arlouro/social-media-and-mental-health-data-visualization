@@ -28,7 +28,6 @@ const graphConfig = {
   ]
 };
 
-
 // >-----------------< Data Initialization >-------------------<
 function initializeGraphs() {
   d3.csv("dataset.csv").then(data => {
@@ -72,8 +71,7 @@ function initializeGraphs() {
     
     setupScatterPlotInteractions(cleanedData, state);
     setupDonutChartInteractions(cleanedData, platformUsageByGender, timeUsageByGender, state);
-    setupBarGraphInteractions(cleanedData, platformUsageByGender, timeUsageByGender, state);
-
+    
   }).catch(error => {
     console.error("Error loading or processing data:", error);
   });
@@ -92,8 +90,7 @@ function genderGroup(gender) {
 }
 
 function parseSocialMediaTime(timeString) {
-  if (!timeString) return "Unknown";
-  return timeString.trim();
+  return timeString ? timeString.trim() : "Unknown";
 }
 
 function parseScale(scaleString) {
@@ -105,33 +102,40 @@ function socialMediaUsedStringParse(socialMediaUsed) {
   return socialMediaUsed ? socialMediaUsed.split(",").map(d => d.trim()) : [];
 }
 
+function parseSocialMediaTimeToMinutes(timeString) {
+  const timeMap = {
+    "Less than 1 hour": 30,
+    "Between 1 and 2 hours": 90,
+    "Between 2 and 3 hours": 150,
+    "Between 3 and 4 hours": 210,
+    "Between 4 and 5 hours": 270,
+    "More than 5 hours": 330
+  };
+  return timeMap[timeString] || 0;
+}
+
 function countPlatformsByGender(data) {
   const platformCounts = {};
 
   data.forEach(entry => {
-      const { gender, socialMediaUsed } = entry;
-
-      socialMediaUsed.forEach(platform => {
-          if (!platformCounts[platform]) {
-              platformCounts[platform] = { Male: 0, Female: 0, Other: 0 };
-          }
-          platformCounts[platform][gender] = (platformCounts[platform][gender] || 0) + 1;
-      });
+    entry.socialMediaUsed.forEach(platform => {
+      if (!platformCounts[platform]) {
+        platformCounts[platform] = { Male: 0, Female: 0, Other: 0 };
+      }
+      platformCounts[platform][entry.gender]++;
+    });
   });
 
-  const sortedPlatforms = Object.keys(platformCounts).sort((a, b) => {
+  return Object.keys(platformCounts)
+    .sort((a, b) => {
       const aTotal = Object.values(platformCounts[a]).reduce((acc, count) => acc + count, 0);
       const bTotal = Object.values(platformCounts[b]).reduce((acc, count) => acc + count, 0);
       return aTotal - bTotal;
-  }
-  );
-
-  const sortedPlatformCounts = {};
-  sortedPlatforms.forEach(platform => {
-      sortedPlatformCounts[platform] = platformCounts[platform];
-  });
-
-  return sortedPlatformCounts;
+    })
+    .reduce((acc, platform) => {
+      acc[platform] = platformCounts[platform];
+      return acc;
+    }, {});
 }
 
 function countSocialMediaTimeByGender(data) {
@@ -144,15 +148,14 @@ function countSocialMediaTimeByGender(data) {
     "More than 5 hours"
   ];
 
-  const timeUsageByGender = {};
-  timeCategories.forEach(category => {
-    timeUsageByGender[category] = { Male: 0, Female: 0, Other: 0 };
-  });
+  const timeUsageByGender = timeCategories.reduce((acc, category) => {
+    acc[category] = { Male: 0, Female: 0, Other: 0 };
+    return acc;
+  }, {});
 
   data.forEach(entry => {
-    const { gender, socialMediaTime } = entry;
-    if (timeUsageByGender[socialMediaTime]) {
-      timeUsageByGender[socialMediaTime][gender]++;
+    if (timeUsageByGender[entry.socialMediaTime]) {
+      timeUsageByGender[entry.socialMediaTime][entry.gender]++;
     }
   });
 
@@ -163,17 +166,10 @@ function countSocialMediaTimeByGender(data) {
 // >-----------------< Visualization Update >-------------------<
 function updateAllVisualizations(data, state) {
   const filteredData = data.filter(d => {
-    const platformMatch = state.selectedPlatform ? 
-      d.socialMediaUsed.includes(state.selectedPlatform) : true;
-    
-    const socialMediaTimeMatch = state.selectedSocialMediaTime ? 
-      d.socialMediaTime === state.selectedSocialMediaTime : true;
-    
-    const occupationMatch = state.selectedOccupation ? 
-      d.occupation === state.selectedOccupation : true;
-    
-    const genderMatch = state.selectedGender ? 
-      d.gender === state.selectedGender : true;
+    const platformMatch = !state.selectedPlatform || d.socialMediaUsed.includes(state.selectedPlatform);
+    const socialMediaTimeMatch = !state.selectedSocialMediaTime || d.socialMediaTime === state.selectedSocialMediaTime;
+    const occupationMatch = !state.selectedOccupation || d.occupation === state.selectedOccupation;
+    const genderMatch = !state.selectedGender || d.gender === state.selectedGender;
     
     return platformMatch && socialMediaTimeMatch && occupationMatch && genderMatch;
   });
@@ -230,9 +226,7 @@ function createLegendForMainGraph(containerId, state) {
   legendItems.append("rect")
     .attr("width", 15)
     .attr("height", 15)
-    .attr("fill", d => d.color)
-    .attr("rx", 3)
-    .attr("ry", 3);
+    .attr("fill", d => d.color);
 
   legendItems.append("text")
     .attr("x", 20)
@@ -242,7 +236,6 @@ function createLegendForMainGraph(containerId, state) {
     .attr("fill", "#333");
 }
 
-
 // >-----------------< Scatter Plot Interactions >-------------------<
 function setupScatterPlotInteractions(data, state) {
   const metricSelector = d3.select("#main-graph")
@@ -250,17 +243,12 @@ function setupScatterPlotInteractions(data, state) {
     .attr("class", "metric-selector")
     .style("position", "absolute")
     .style("top", "50px")
-    .style("left", "14px")
-    .style("padding", "5px")
-    .style("border", "1px solid #ccc")
-    .style("border-radius", "4px")
-    .style("background-color", "white")
-    .style("width", "150px");
+    .style("left", "14px");
 
   metricSelector.selectAll("option")
     .data(graphConfig.mentalHealthMetrics)
     .enter()
-    .append("xhtml:option")
+    .append("option")
     .attr("value", d => d.key)
     .text(d => d.label);
 
@@ -287,20 +275,6 @@ function setupDonutChartInteractions(data, platformUsageByGender, timeUsageByGen
         state.selectedSocialMediaTime = state.selectedSocialMediaTime === d.category ? null : d.category;
         state.selectedPlatform = null;
       }
-      
-      updateAllVisualizations(data, state);
-    });
-}
-
-// >-----------------< Bar Graph Interactions >-------------------<
-function setupBarGraphInteractions(data, platformUsageByGender, timeUsageByGender, state) {
-  const svg = d3.select("#side-graph-1 svg");
-
-  svg.selectAll(".bar")
-    .on("click", function(event, d) {
-      const selectedDepressionLevel = d.depression;
-      
-      state.selectedMentalHealthMetric = state.selectedMentalHealthMetric === selectedDepressionLevel ? null : selectedDepressionLevel;
       
       updateAllVisualizations(data, state);
     });
@@ -758,16 +732,6 @@ function createBarGraph(containerId, width, height, data) {
     .style("font-weight", "bold")
     .style("fill", "#333")
     .text("Depression Level");
-}
-
-function parseSocialMediaTimeToMinutes(timeString) {
-  if (timeString.includes("Less than 1 hour")) return 30;
-  if (timeString.includes("Between 1 and 2 hours")) return 90;
-  if (timeString.includes("Between 2 and 3 hours")) return 150;
-  if (timeString.includes("Between 3 and 4 hours")) return 210;
-  if (timeString.includes("Between 4 and 5 hours")) return 270;
-  if (timeString.includes("More than 5 hours")) return 330;
-  return 0;
 }
 
 document.addEventListener('DOMContentLoaded', initializeGraphs);
