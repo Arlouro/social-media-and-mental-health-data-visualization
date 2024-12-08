@@ -1,8 +1,8 @@
 // >-----------------< Graph Config >-------------------<
 const graphConfig = {
-  mainWidth: 680,
+  mainWidth: 750,
   mainHeight: 700,
-  sideWidth: 350,
+  sideWidth: 300,
   sideHeight: 250,
   colors: {
     Male: '#285AAD',    
@@ -197,8 +197,7 @@ function createTooltip() {
 function createLegendForMainGraph(containerId, state) {
   const svg = d3.select(containerId).select("svg");
   const width = parseInt(svg.attr("width"));
-  const height = parseInt(svg.attr("height"));
-  const margin = { top: 60, right: 150, bottom: 70, left: 60 };
+  const margin = { top: 60, right: 140, bottom: 70, left: 60 };
 
   svg.selectAll(".legend").remove();
 
@@ -208,7 +207,7 @@ function createLegendForMainGraph(containerId, state) {
 
   const legend = controlContainer.append("g")
     .attr("class", "legend")
-    .attr("transform", "translate(0, 60)");
+    .attr("transform", "translate(-220, -20)");
 
   const legendData = [
     { color: graphConfig.colors.Male, label: 'Male' },
@@ -221,7 +220,7 @@ function createLegendForMainGraph(containerId, state) {
     .enter()
     .append("g")
     .attr("class", "legend-item")
-    .attr("transform", (d, i) => `translate(0, ${i * 25})`);
+    .attr("transform", (d, i) => `translate(${i * 80}, 0)`);
 
   legendItems.append("rect")
     .attr("width", 15)
@@ -246,7 +245,7 @@ function setupScatterPlotInteractions(data, state) {
     .attr("class", "metric-selector")
     .style("position", "absolute")
     .style("top", "50px")
-    .style("left", "10px")
+    .style("left", "14px")
     .style("padding", "5px")
     .style("border", "1px solid #ccc")
     .style("border-radius", "4px")
@@ -405,7 +404,7 @@ function createDonutChart(containerId, width, height, platformUsageByGender, tim
     .style("justify-content", "center")
     .style("flex-direction", "column")
     .style("margin-bottom", "20px")
-    .style("align-items", "center");
+    .style("align-items", "left");
 
   const visualizationSelector = donutContainer
     .append("select")
@@ -557,7 +556,7 @@ function createBarGraph(containerId, width, height, data) {
     .attr("width", width)
     .attr("height", height);
 
-  const margin = { top: 20, right: 20, bottom: 50, left: 60 };
+  const margin = { top: 20, right: 20, bottom: 20, left: 60 };
   const chartWidth = width - margin.left - margin.right;
   const chartHeight = height - margin.top - margin.bottom;
 
